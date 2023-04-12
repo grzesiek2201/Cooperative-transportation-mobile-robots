@@ -68,10 +68,10 @@ def minkowskisum(pol1, pol2):
 if __name__ == '__main__':
     # create two polygons
     polygon1 = np.array([[2, 0], [2, 4], [5, 0], [5, 4]])
-    polygon2 = np.array([[7, 0], [7, 4], [9, 4], [9, -1], [8, 6]])
+    polygon2 = np.array([[5, 0], [7, 4], [9, 4], [9, -1], [8, 6]])
 
     # calculate minkowski sum
-    msum = minkowskisum(polygon1, polygon2)
+    msum = minkowskisum(polygon1, -polygon2)
 
     # plot the polygons
     polygon1 = sort_vertices(polygon1)

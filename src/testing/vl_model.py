@@ -3,6 +3,8 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from matplotlib.patches import Rectangle
 from rotrectangle import RotatingRectangle
+from pathlib import Path
+import logging
 
 
 class VitrualLeader:
@@ -48,11 +50,12 @@ class Follower:
         self.u = []
 
     def update_vel(self, ts):
+        # updated reference velocities in order to input them into controller
         # x_prev is previous position of follower, x is current position of follower
         vx = (self.x[0] - self.x_prev[0]) / ts
         vy = (self.x[1] - self.x_prev[1]) / ts
         v = np.sqrt(vx * vx + vy * vy)
-        w = 0 # dont know where to get it from
+        w =  (self.x[2] - self.x_prev[2]) / ts # dont know where to get it from
         self.u = [v, w]
 
     def update_pos(self, x_vl, x_vl_prev, u_vl):
@@ -75,8 +78,14 @@ def rectangle(x, y, alpha, height, width):
     return corner_x, corner_y
 
 
-def read_data():
-    data = pd.read_csv('D:\\Projects\\cooperative_transportation\\src\\testing\\trajectory.csv')
+def read_data(filename='trajectory.csv'):
+    try:
+        path = list(Path(__file__).parent.parent.glob(f"testing/{filename}"))[0]
+        data = pd.read_csv(path)
+    except FileNotFoundError as e:
+        logging.error(e)
+    except IndexError as e:
+        logging.error(e)
     X = np.array(data["x"].to_list()).reshape(-1, 1)
     Y = np.array(data["y"].to_list()).reshape(-1, 1)
     Theta = np.array(data["0"].to_list()).reshape(-1, 1)
@@ -130,40 +139,55 @@ def main():
     follower1_history_x = []
     follower1_history_y = []
     follower1_history_v = []
+    follower1_history_w = []
     follower2_history_x = []
     follower2_history_y = []
     follower2_history_v = []
+    follower2_history_w = []
 
     leader = VitrualLeader()
     leader.x = [float(X[0]), float(Y[0]), float(Theta[0])]
     leader_pose_x = []
     leader_pose_y = []
     leader_pose_theta = []
+    leader_v = []
+    leader_w = []
     t0 = T[0]
 
     for i in range(len(X)-1):
+            # get parameters for given time point
             u = U[i]
             t = T[i+1]
             ts = t - t0
+            # previous state
             x_prev = leader.x
+            # update the leader position based on control vector and time period
             leader.update_pos(u[0], u[1], ts)
+            # update followers position
             follower1.update_pos(leader.x, x_prev, u)
             follower2.update_pos(leader.x, x_prev, u)
+            # update followers velocity
             follower1.update_vel(ts)
             follower2.update_vel(ts)
+            # append all the data to lists in order to analyze
             leader_pose_x.append(leader.x[0])
             leader_pose_y.append(leader.x[1])
             leader_pose_theta.append(leader.x[2])
+            leader_v.append(u[0])
+            leader_w.append(u[1])
             follower1_history_x.append(follower1.x[0])
             follower1_history_y.append(follower1.x[1])
             follower1_history_v.append(follower1.u[0])
+            follower1_history_w.append(follower1.u[1])
             follower2_history_x.append(follower2.x[0])
             follower2_history_y.append(follower2.x[1])
             follower2_history_v.append(follower2.u[0])
+            follower2_history_w.append(follower2.u[1])
+
             t0 = t
 
     fig = plt.figure(figsize=(7, 7))
-    subplots = fig.subplots(3, 1)
+    subplots = fig.subplots(5, 1)
     subplots[0].plot(follower1_history_x, follower1_history_y, color='blue')
     subplots[0].plot(follower2_history_x, follower2_history_y, color='green')
     subplots[0].plot(X, Y, color='red')
@@ -194,6 +218,16 @@ def main():
     subplots[2].plot(Y, color='red')
     subplots[2].set_title("y")
     subplots[2].grid()
+
+    subplots[3].plot(leader_v, color='red')
+    subplots[3].plot(follower1_history_v, color='blue')
+    subplots[3].plot(follower2_history_v, color='green')
+    subplots[3].set_title("v [m/s]")
+
+    subplots[4].plot(leader_w, color='red')
+    subplots[4].plot(follower1_history_w, color='blue')
+    subplots[4].plot(follower2_history_w, color='green')
+    subplots[4].set_title("w [rad/s]")
 
     plt.show()
 

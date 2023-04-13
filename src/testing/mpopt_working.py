@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 import casadi as ca
 import aerosandbox.numpy as np  # to help with writing functions as numpy instead of casadi, not used currently
 import pandas as pd
+from pathlib import Path
 
 
 def dynamics(x, u, t):  # kinematics?
@@ -182,7 +183,8 @@ x, u, t, _ = post.get_data()
 # save results to .csv
 results = pd.DataFrame(np.hstack((x, u, t)))
 results.columns = ["x", "y", "0", "v", "w", "t"]
-results.to_csv("D:\\Projects\\cooperative_transportation\\src\\testing\\trajectory.csv", index=False)
+path = list(Path(__file__).parent.parent.glob(f"testing/trajectory.csv"))[0]
+results.to_csv(path, index=False)
 
 # Plotting the result
 RESOLUTION = (200, 200)

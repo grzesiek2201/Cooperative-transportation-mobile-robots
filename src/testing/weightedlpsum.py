@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 #         # print(f"{x=}")
 #     return norm
 
-def wlps(x, u, s, p, n=2):
+def wlps(xy, u, s, p, n=2):
     # XY = np.vstack(list(zip(x,y)))
     # xy=(x[0], x[1])
     # norm = ((abs(x[0])/s[0])**p + (abs(x[1])/s[1])**p)**(1/p)

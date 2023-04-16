@@ -65,7 +65,7 @@ def wlps(x, u, s, p, n=2):
 
 def wlpn(x, s, p, h, k, a):
     """
-    Weighted Lp norm for R2 with translation and rotation
+    Weighted Lp norm for R2 with translation and rotation.
 
     Args:
         x (list[float]): values to compute
@@ -127,6 +127,7 @@ a = ca.SX.sym('a', 1)
 wlps_ca = ca.Function('wlps', [x, s, p, h, k, a], [ca.power(ca.power(ca.fabs((x[0] - h) * ca.cos(a) + (x[1] - k) * ca.sin(a)) / s[0], p) +\
                                                    ca.power(ca.fabs((x[0] - h) * ca.sin(a) - (x[1] - k) * ca.cos(a)) / s[1], p), 1/p)])
 
+
 X0 = np.array([0., 0., 0.5]); u0 = np.array([0., 0.])
 Xf = np.array([32., 2, 3]); uf = np.array([0., 0.])
 tf = 30.0
@@ -154,6 +155,7 @@ coords = [[20, 10, 3, 0.3], [20, 10, 0, 0.3], [20, 22.5, 3, 0], [20, 24, 0, 0],
 sigmas = [np.array(sigma) for sigma in sigmas]
 r = 0.35
 ocp.path_constraints[0] = lambda x, u, t: [-wlps_ca(x, s+r, p, h, k, a) + 1 for s, [p, h, k, a] in zip(sigmas, coords)]
+# ocp.path_constraints[0] = lambda x, u, t: [-wlps_rra(x, s, p, h, k, a) + 1 for s, ]
 # ocp.path_constraints[0] = lambda x, u, t: [-wlpn(x, [1.5, 1.5], 10, 3, 0, 1) + 1]
 # ocp.path_constraints[0] = lambda x, u, t: [-x[0]+13 * x[0]-17 * -x[1]-2 * x[1]-2]  # doesn't work and I don't know if it should?
 

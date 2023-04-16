@@ -43,31 +43,32 @@ class VitrualLeader:
 
 class Follower:
     def __init__(self, d=0, alpha=0):
-        self.x = [0, 0, 0]
-        self.x_prev = [0, 0, 0]
+        self.state_ref = np.array([0, 0, 0])
+        self.state_ref_prev = np.array([0, 0, 0])
+        self.state = np.array([0, 0, 0])
         self.d = d
         self.alpha = alpha
-        self.u = []
+        self.control = None
 
     def update_vel(self, ts):
         # updated reference velocities in order to input them into controller
         # x_prev is previous position of follower, x is current position of follower
-        vx = (self.x[0] - self.x_prev[0]) / ts
-        vy = (self.x[1] - self.x_prev[1]) / ts
+        vx = (self.state_ref[0] - self.state_ref_prev[0]) / ts
+        vy = (self.state_ref[1] - self.state_ref_prev[1]) / ts
         v = np.sqrt(vx * vx + vy * vy)
-        w =  (self.x[2] - self.x_prev[2]) / ts # dont know where to get it from
-        self.u = [v, w]
+        w =  (self.state_ref[2] - self.state_ref_prev[2]) / ts # dont know where to get it from
+        self.control = np.array([float(v), float(w)])
 
     def update_pos(self, x_vl, x_vl_prev, u_vl):
         # x_vl is the state vector of Virtual Leader at time step k+1
         x_new = x_vl[0] + self.d * np.cos(self.alpha + x_vl_prev[2])
         y_new = x_vl[1] + self.d * np.sin(self.alpha + x_vl_prev[2])
         if round(u_vl[1], 16) != 0:  # ***VERIFY THAT IT'S A SATISFYING (WORKING) SOLUTION TO DIVIDING BY ZERO IN THE ACRTAN***
-            theta_new = np.arctan((y_new - self.x[1]) / (x_new - self.x[0]))
+            theta_new = np.arctan((y_new - self.state_ref[1]) / (x_new - self.state_ref[0]))
         else:
             theta_new = x_vl_prev[2]
-        self.x_prev = self.x
-        self.x = [x_new, y_new, theta_new]
+        self.state_ref_prev = self.state_ref
+        self.state_ref = np.array([x_new, y_new, theta_new])
 
 
 def rectangle(x, y, alpha, height, width):
@@ -175,14 +176,14 @@ def main():
             leader_pose_theta.append(leader.x[2])
             leader_v.append(u[0])
             leader_w.append(u[1])
-            follower1_history_x.append(follower1.x[0])
-            follower1_history_y.append(follower1.x[1])
-            follower1_history_v.append(follower1.u[0])
-            follower1_history_w.append(follower1.u[1])
-            follower2_history_x.append(follower2.x[0])
-            follower2_history_y.append(follower2.x[1])
-            follower2_history_v.append(follower2.u[0])
-            follower2_history_w.append(follower2.u[1])
+            follower1_history_x.append(follower1.state_ref[0])
+            follower1_history_y.append(follower1.state_ref[1])
+            follower1_history_v.append(follower1.control[0])
+            follower1_history_w.append(follower1.control[1])
+            follower2_history_x.append(follower2.state_ref[0])
+            follower2_history_y.append(follower2.state_ref[1])
+            follower2_history_v.append(follower2.control[0])
+            follower2_history_w.append(follower2.control[1])
 
             t0 = t
 

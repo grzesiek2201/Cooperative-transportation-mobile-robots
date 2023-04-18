@@ -6,6 +6,7 @@ import casadi as ca
 import aerosandbox.numpy as np  # to help with writing functions as numpy instead of casadi, not used currently
 import pandas as pd
 from pathlib import Path
+import math
 
 
 def dynamics(x, u, t):  # kinematics?
@@ -54,12 +55,8 @@ def quadratic_and_obstacle(x, u, t, x0=0, u0=0, Q=None, R=None, sigmas=None, coo
     return cost
 
 
-def wlps(x, u, s, p, n=2):
-    # XY = np.vstack(list(zip(x,y)))
-    xy = np.stack((x[0], x[1]))
+def wlps(xy, s, p):
     norm = np.power(np.sum(np.power(np.abs(xy)/s, p)), 1/p)
-    # if norm < 1:
-        # print(f"{x=}")
     return norm
 
 
@@ -82,18 +79,18 @@ def wlpn(x, s, p, h, k, a):
                     np.power(np.abs((x[0] - h)*np.sin(a)-(x[1]-k)*np.cos(a)) / s[1], p), 1/p)
 
 
-def rotate_origin(rectangle, angle):
-    """Rotate rectangle around (0, 0)
+# def rotate_origin(rectangle, angle):
+#     """Rotate rectangle around (0, 0)
 
-    Args:
-        rectangle (np.ndarray[list[float, float]]): Numpy array with coordinates of the 4 rectangle's corners
-        angle (float): Angle the rectangle is to be rotated by in radians
+#     Args:
+#         rectangle (np.ndarray[list[float, float]]): Numpy array with coordinates of the 4 rectangle's corners
+#         angle (float): Angle the rectangle is to be rotated by in radians
 
-    Returns:
-        np.ndarray[list[float, float]]: Numpy array with rotated coordinates of the 4 rectange's corners
-    """
-    # rotate rectangle around (0, 0)
-    return np.array([(np.cos(angle) * corner[0] - np.sin(angle) * corner[1], np.sin(angle) * corner[0] + np.cos(angle) * corner[1]) for corner in rectangle])
+#     Returns:
+#         np.ndarray[list[float, float]]: Numpy array with rotated coordinates of the 4 rectange's corners
+#     """
+#     # rotate rectangle around (0, 0)
+#     return np.array([(np.cos(angle) * corner[0] - np.sin(angle) * corner[1], np.sin(angle) * corner[0] + np.cos(angle) * corner[1]) for corner in rectangle])
 
 
 def rotate_point(rectangle, angle, point):
@@ -112,8 +109,138 @@ def rotate_point(rectangle, angle, point):
             for corner in rectangle]
 
 
+# def translate_corners(rectangle, xy):
+#     return [(corner[0] + xy[0], corner[1] + xy[1]) for corner in rectangle]
+
+
+# def vert_from_params(params):
+#     # get rectangle vertices from its parameters
+#     center = params[0], params[1]
+#     angle = params[2]
+#     dimensions = params[3], params[4]
+
+#     # create the (normalized) perpendicular vectors
+#     v1 = np.array((math.cos(angle), math.sin(angle)))
+#     v2 = np.array((-v1[1], v1[0]))  # rotate by 90
+
+#     # scale them appropriately by the dimensions
+#     v1 *= dimensions[0]
+#     v2 *= dimensions[1]
+
+#     # return the corners by moving the center of the rectangle by the vectors
+#     return np.array([
+#         center + v1 + v2,
+#         center - v1 + v2,
+#         center - v1 - v2,
+#         center + v1 - v2,
+#     ])
+
+
+# def to_rframe(rectangle, robot, deg=False):
+#     # transform rectangle from global to robot frame
+#     # deg: if robot's angle in degrees instead of radians
+#     translated = translate_corners(rectangle=rectangle, xy=-robot)
+#     if deg:
+#         angle = -robot[2] * np.pi / 180
+#     else:
+#         angle = -robot[2]
+#     transformed = rotate_origin(rectangle=translated, angle=angle)
+#     return transformed
+
+
+# def to_oframe(robot, rectangle, deg=False):
+#     # transform robot from global to obstacle frame
+#     translated = translate_corners(rectangle=robot, xy=-rectangle)
+#     if deg:
+#         angle = -rectangle[2] * np.pi / 180
+#     else:
+#         angle = -rectangle[2]
+#     transformed = rotate_origin(rectangle=translated, angle=angle)
+#     return transformed
+
+
+def rrcollision(robot, obstacle, i):
+    # robot and obstacle are in params form [x, y, angle, s1, s2]
+    # obstacle in robot's frame
+    obstacle_corners = vert_from_params(obstacle)
+    obstacle_r = to_rframe(rectangle=obstacle_corners, robot=robot, deg=False)
+    # check for collision type A
+    # collisions_A = ([-wlps_ca_simple(corner[0], corner[1], robot[3:], 20)+1 for corner in obstacle_r])
+    # collisions_A = ([wlps(co)])
+    # if any(collisions_A <= 1):
+    #     print("Collision type A")
+
+    # robot in obstacle frame
+    robot_corners = vert_from_params(robot)
+    robot_o = to_oframe(robot_corners, obstacle, deg=True)
+    # check for collision type B
+    # collisions_B = ([-wlps_ca_simple(corner[0], corner[1], obstacle[3:], 20)+1 for corner in robot_o])
+    # if any(collisions_B <= 1):
+    #     print("Collision type B")
+    # return collisions_A + collisions_B
+
+    if i < 4:
+        collision = wlps_ca_simple(obstacle_r[i][0], obstacle_r[i][1], robot[3:5], 40)
+    else:
+        collision = wlps_ca_simple(robot_o[i%4][0], robot_o[i%4][1], obstacle[3:5], 40)
+    return collision
+
+
+#### Casadi functions
+
+def vert_from_params(params):
+    # get rectangle vertices from its parameters
+    center = ca.SX.sym("center", 2)
+    center[0], center[1] = params[0], params[1]
+    angle = params[2]
+    dimensions = params[3], params[4]
+
+    # create the (normalized) perpendicular vectors
+    v1 = ca.SX.sym("v1", 2)
+    v2 = ca.SX.sym("v2", 2)
+    v1[0], v1[1] = ca.cos(angle), ca.sin(angle)
+    v2[0], v2[1] = -v1[1], v1[0]
+
+    # scale them appropriately by the dimensions
+    v1 *= dimensions[0]
+    v2 *= dimensions[1]
+
+    # return the corners by moving the center of the rectangle by the vectors
+    ret = ca.SX.sym("corners", 4, 2)
+    ret[0, :] = center + v1 + v2
+    ret[1, :] = center - v1 + v2
+    ret[2, :] = center - v1 - v2
+    ret[3, :] = center + v1 - v2
+    return ret
+
+def to_rframe(rectangle, robot, deg=False):
+    # transform rectangle from global to robot frame
+    # deg: if robot's angle in degrees instead of radians
+    translated = translate_corners(rectangle=rectangle, xy=-robot)
+    if deg:
+        angle = -robot[2] * ca.pi / 180
+    else:
+        angle = -robot[2]
+    transformed = rotate_origin(rectangle=translated, angle=angle)
+    return transformed
+
+def to_oframe(robot, rectangle, deg=False):
+    # transform robot from global to obstacle frame
+    translated = translate_corners(rectangle=robot, xy=-rectangle)
+    if deg:
+        angle = -rectangle[2] * ca.pi / 180
+    else:
+        angle = -rectangle[2]
+    transformed = rotate_origin(rectangle=translated, angle=angle)
+    return transformed
+
 def translate_corners(rectangle, xy):
-    return [(corner[0] + xy[0], corner[1] + xy[1]) for corner in rectangle]
+    return [(corner[0] + xy[0], corner[1] + xy[1]) for corner in ca.vertsplit(rectangle, 1)]
+
+def rotate_origin(rectangle, angle):
+    # rotate rectangle around (0, 0)
+    return [(ca.cos(angle) * corner[0] - ca.sin(angle) * corner[1], ca.sin(angle) * corner[0] + ca.cos(angle) * corner[1]) for corner in rectangle]
+
 
 
 x = ca.SX.sym('x', 3)
@@ -126,10 +253,14 @@ a = ca.SX.sym('a', 1)
 # wlps_ca = ca.Function('wlps', [x, u, s, p], [ca.power(ca.cumsum(ca.power((ca.fabs(ca.vertsplit(x, [0, 2, 3])[0]) / s), p)), 1/p)]) 
 wlps_ca = ca.Function('wlps', [x, s, p, h, k, a], [ca.power(ca.power(ca.fabs((x[0] - h) * ca.cos(a) + (x[1] - k) * ca.sin(a)) / s[0], p) +\
                                                    ca.power(ca.fabs((x[0] - h) * ca.sin(a) - (x[1] - k) * ca.cos(a)) / s[1], p), 1/p)])
+xs = ca.SX.sym('xs', 1)
+ys = ca.SX.sym('ys', 1)
+wlps_ca_simple = ca.Function('wlps_simple', [xs, ys, s, p], [ca.power(ca.power(ca.fabs(xs) / s[0], p) +\
+                                                             ca.power(ca.fabs(ys) / s[1], p), 1/p)])
 
-
-X0 = np.array([0., 0., 0.5]); u0 = np.array([0., 0.])
-Xf = np.array([32., 2, 3]); uf = np.array([0., 0.])
+robot_size = [2, 1]
+X0 = np.array([-3., 0., -0.5]); u0 = np.array([0., 0.])
+Xf = np.array([32., 2, 0]); uf = np.array([0., 0.])
 tf = 30.0
 circle = (5, 0, 3)
 
@@ -147,17 +278,16 @@ ocp.ubtf[0] = tf*2
 
 # ocp.path_constraints[0] = lambda x, u, t: [-(x[0] - circle[0])**2 - (x[1]-circle[1])**2 + circle[2]**2]
 # the lambda function must return array of values that represent constraints, so iterate through all the obstacles and their transformations to robot frame
-sigmas = [[8, 1], [8, 1], [2, 6], [.5, 2], [8, 1], [8, 1], [2, 6], [.5, 2], [8, 1], [8, 1], [2, 6], [.5, 2]]
-coords = [[20, 10, 3, 0.3], [20, 10, 0, 0.3], [20, 22.5, 3, 0], [20, 24, 0, 0],
-          [20, 10, 3, 0.3], [20, 10, 0, 0.3], [20, 22.5, 3, 0], [20, 24, 0, 0],
-          [20, 10, 3, 0.3], [20, 10, 0, 0.3], [20, 22.5, 3, 0], [20, 24, 0, 0]]  # [p - degree, h - horizontal transition, k - vertical transition, a - angle]
+sigmas = [[8, 4]]#, [8, 1], [2, 6], [.5, 2], [8, 1], [8, 1], [2, 6], [.5, 2], [8, 1], [8, 1], [2, 6], [.5, 2]]
+coords = [[20, 10, 3, 0.3]]#, [20, 10, 0, 0.3], [20, 22.5, 3, 0], [20, 24, 0, 0],
+        #   [20, 10, 3, 0.3], [20, 10, 0, 0.3], [20, 22.5, 3, 0], [20, 24, 0, 0],
+        #   [20, 10, 3, 0.3], [20, 10, 0, 0.3], [20, 22.5, 3, 0], [20, 24, 0, 0]]  # [p - degree, h - horizontal transition, k - vertical transition, a - angle]
 # also have to add offset to the obstacles +r +e ******************
 sigmas = [np.array(sigma) for sigma in sigmas]
 r = 0.35
-ocp.path_constraints[0] = lambda x, u, t: [-wlps_ca(x, s+r, p, h, k, a) + 1 for s, [p, h, k, a] in zip(sigmas, coords)]
-# ocp.path_constraints[0] = lambda x, u, t: [-wlps_rra(x, s, p, h, k, a) + 1 for s, ]
-# ocp.path_constraints[0] = lambda x, u, t: [-wlpn(x, [1.5, 1.5], 10, 3, 0, 1) + 1]
-# ocp.path_constraints[0] = lambda x, u, t: [-x[0]+13 * x[0]-17 * -x[1]-2 * x[1]-2]  # doesn't work and I don't know if it should?
+# ocp.path_constraints[0] = lambda x, u, t: [-wlps_ca(x, s+r, p, h, k, a) + 1 for s, [p, h, k, a] in zip(sigmas, coords)]
+ocp.path_constraints[0] = lambda x, u, t: [-rrcollision(np.array([x[0], x[1], x[2], robot_size[0], robot_size[1]]), np.array([h, k, a, s[0], s[1]]), i) + 1
+                                           for s, [p, h, k, a] in zip(sigmas, coords) for i in range(8)]
 
 # ocp.running_costs[0] = sqrt_cost
 # ocp.running_costs[0] = lambda x, u, t: 0.5 * (x[0] * x[0] + u[0] * u[0])

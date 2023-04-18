@@ -134,6 +134,30 @@ def coord_transf_test():
     ax.set_aspect('equal')
     plt.show()
 
+    rrcollision(robot, rectangle_params)
+    pass
+
+
+def rrcollision(robot, obstacle):
+    # robot and obstacle are in params form [x, y, angle, s1, s2]
+    # obstacle in robot's frame
+    obstacle_corners = vert_from_params(obstacle)
+    obstacle_r = to_rframe(rectangle=obstacle_corners, robot=robot, deg=False)
+    # check for collision type A
+    collisions_A = ([wlps(corner, robot[3:], p=20) for corner in obstacle_r])
+    # if any(collisions_A <= 1):
+    #     print("Collision type A")
+
+    # robot in obstacle frame
+    robot_corners = vert_from_params(robot)
+    robot_o = to_oframe(robot_corners, obstacle, deg=True)
+    # check for collision type B
+    collisions_B = ([wlps(corner, obstacle[3:], p=20) for corner in robot_o])
+    # if any(collisions_B <= 1):
+    #     print("Collision type B")
+    return min(collisions_A + collisions_B)
+    
+
 
 def main():
     s1 = 1

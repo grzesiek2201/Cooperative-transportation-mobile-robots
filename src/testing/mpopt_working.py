@@ -16,8 +16,8 @@ def dynamics(x, u, t):  # kinematics?
 
 
 def sqrt_cost(x, u, t):
-    return np.sqrt(np.power(np.cos(x[2]) * u[0], 2) +            # xdot = cos(theta) v
-                   np.power(np.sin(x[2]) * u[0], 2))             # ydot = sin(theta) v
+    return ca.sqrt(ca.power(ca.cos(x[2]) * u[0], 2) +            # xdot = cos(theta) v
+                   ca.power(ca.sin(x[2]) * u[0], 2))             # ydot = sin(theta) v
     # return np.sqrt(x[0] * x[0] + x[1] * x[1])
 
 
@@ -79,20 +79,6 @@ def wlpn(x, s, p, h, k, a):
                     np.power(np.abs((x[0] - h)*np.sin(a)-(x[1]-k)*np.cos(a)) / s[1], p), 1/p)
 
 
-# def rotate_origin(rectangle, angle):
-#     """Rotate rectangle around (0, 0)
-
-#     Args:
-#         rectangle (np.ndarray[list[float, float]]): Numpy array with coordinates of the 4 rectangle's corners
-#         angle (float): Angle the rectangle is to be rotated by in radians
-
-#     Returns:
-#         np.ndarray[list[float, float]]: Numpy array with rotated coordinates of the 4 rectange's corners
-#     """
-#     # rotate rectangle around (0, 0)
-#     return np.array([(np.cos(angle) * corner[0] - np.sin(angle) * corner[1], np.sin(angle) * corner[0] + np.cos(angle) * corner[1]) for corner in rectangle])
-
-
 def rotate_point(rectangle, angle, point):
     """Rotate rectangle around point
 
@@ -109,80 +95,30 @@ def rotate_point(rectangle, angle, point):
             for corner in rectangle]
 
 
-# def translate_corners(rectangle, xy):
-#     return [(corner[0] + xy[0], corner[1] + xy[1]) for corner in rectangle]
-
-
-# def vert_from_params(params):
-#     # get rectangle vertices from its parameters
-#     center = params[0], params[1]
-#     angle = params[2]
-#     dimensions = params[3], params[4]
-
-#     # create the (normalized) perpendicular vectors
-#     v1 = np.array((math.cos(angle), math.sin(angle)))
-#     v2 = np.array((-v1[1], v1[0]))  # rotate by 90
-
-#     # scale them appropriately by the dimensions
-#     v1 *= dimensions[0]
-#     v2 *= dimensions[1]
-
-#     # return the corners by moving the center of the rectangle by the vectors
-#     return np.array([
-#         center + v1 + v2,
-#         center - v1 + v2,
-#         center - v1 - v2,
-#         center + v1 - v2,
-#     ])
-
-
-# def to_rframe(rectangle, robot, deg=False):
-#     # transform rectangle from global to robot frame
-#     # deg: if robot's angle in degrees instead of radians
-#     translated = translate_corners(rectangle=rectangle, xy=-robot)
-#     if deg:
-#         angle = -robot[2] * np.pi / 180
-#     else:
-#         angle = -robot[2]
-#     transformed = rotate_origin(rectangle=translated, angle=angle)
-#     return transformed
-
-
-# def to_oframe(robot, rectangle, deg=False):
-#     # transform robot from global to obstacle frame
-#     translated = translate_corners(rectangle=robot, xy=-rectangle)
-#     if deg:
-#         angle = -rectangle[2] * np.pi / 180
-#     else:
-#         angle = -rectangle[2]
-#     transformed = rotate_origin(rectangle=translated, angle=angle)
-#     return transformed
-
-
 def rrcollision(robot, obstacle, i):
-    # robot and obstacle are in params form [x, y, angle, s1, s2]
+    # robot and obstacle are in params form [x, y, angle, s1, s2] [x, y, angle, s1, s2, p]
     # obstacle in robot's frame
-    obstacle_corners = vert_from_params(obstacle)
-    obstacle_r = to_rframe(rectangle=obstacle_corners, robot=robot, deg=False)
+    if i < 4:
+        obstacle_corners = vert_from_params(obstacle)
+        obstacle_r = to_rframe(rectangle=obstacle_corners, robot=robot, deg=False)
+        collision = wlps_ca_simple(obstacle_r[i][0], obstacle_r[i][1], robot[3:5], robot[5])
     # check for collision type A
-    # collisions_A = ([-wlps_ca_simple(corner[0], corner[1], robot[3:], 20)+1 for corner in obstacle_r])
+    # collisions_A = ([-wlps_ca_simple(corner[0], corner[1], robot[3:], p)+1 for corner in obstacle_r])
     # collisions_A = ([wlps(co)])
     # if any(collisions_A <= 1):
     #     print("Collision type A")
 
     # robot in obstacle frame
-    robot_corners = vert_from_params(robot)
-    robot_o = to_oframe(robot_corners, obstacle, deg=True)
+    else:
+        robot_corners = vert_from_params(robot)
+        robot_o = to_oframe(robot=robot_corners, rectangle=obstacle, deg=False)
+        collision = wlps_ca_simple(robot_o[i-4][0], robot_o[i-4][1], obstacle[3:5], obstacle[5])
     # check for collision type B
-    # collisions_B = ([-wlps_ca_simple(corner[0], corner[1], obstacle[3:], 20)+1 for corner in robot_o])
+    # collisions_B = ([-wlps_ca_simple(corner[0], corner[1], obstacle[3:], p)+1 for corner in robot_o])
     # if any(collisions_B <= 1):
     #     print("Collision type B")
     # return collisions_A + collisions_B
 
-    if i < 4:
-        collision = wlps_ca_simple(obstacle_r[i][0], obstacle_r[i][1], robot[3:5], 40)
-    else:
-        collision = wlps_ca_simple(robot_o[i%4][0], robot_o[i%4][1], obstacle[3:5], 40)
     return collision
 
 
@@ -256,49 +192,71 @@ wlps_ca = ca.Function('wlps', [x, s, p, h, k, a], [ca.power(ca.power(ca.fabs((x[
 xs = ca.SX.sym('xs', 1)
 ys = ca.SX.sym('ys', 1)
 wlps_ca_simple = ca.Function('wlps_simple', [xs, ys, s, p], [ca.power(ca.power(ca.fabs(xs) / s[0], p) +\
-                                                             ca.power(ca.fabs(ys) / s[1], p), 1/p)])
+                                                                      ca.power(ca.fabs(ys) / s[1], p), 1/p)])
 
-robot_size = [2, 1]
-X0 = np.array([-3., 0., -0.5]); u0 = np.array([0., 0.])
-Xf = np.array([32., 2, 0]); uf = np.array([0., 0.])
-tf = 30.0
+r = 0.35
+X0 = np.array([-5., -2., -math.pi/4]); u0 = np.array([0, 0])
+Xf = np.array([6., 4, -math.pi/4]); uf = np.array([0., 0.])
+tf = 3.667 * math.pi
 circle = (5, 0, 3)
 
 # Define OCP
 ocp = mp.OCP(n_states=3, n_controls=2, n_phases=1)
 ocp.dynamics[0] = dynamics
 ocp.x00[0] = X0
-ocp.xf0[0][0] = Xf[0]; ocp.xf0[0][1] = Xf[1]; ocp.xf0[0][2] = Xf[2]
-ocp.u00[0] = u0
-ocp.uf0[0] = uf
-ocp.lbu[0], ocp.ubu[0] = [0, -1], [1, 1]  # if the input constraints are too restrictive the solution is often not found
+ocp.xf0[0][0] = Xf[0]; ocp.xf0[0][1] = Xf[1]#; ocp.xf0[0][2] = Xf[2]
+# ocp.u00[0] = u0
+# ocp.uf0[0] = uf
+ocp.lbu[0], ocp.ubu[0] = [-5, -math.pi/2], [5, math.pi/2]  # if the input constraints are too restrictive the solution is often not found
 ocp.lbtf[0] = tf
 ocp.ubtf[0] = tf*2
 # ocp.scale_t = 1 / tf
 
 # ocp.path_constraints[0] = lambda x, u, t: [-(x[0] - circle[0])**2 - (x[1]-circle[1])**2 + circle[2]**2]
 # the lambda function must return array of values that represent constraints, so iterate through all the obstacles and their transformations to robot frame
-sigmas = [[8, 4]]#, [8, 1], [2, 6], [.5, 2], [8, 1], [8, 1], [2, 6], [.5, 2], [8, 1], [8, 1], [2, 6], [.5, 2]]
-coords = [[20, 10, 3, 0.3]]#, [20, 10, 0, 0.3], [20, 22.5, 3, 0], [20, 24, 0, 0],
-        #   [20, 10, 3, 0.3], [20, 10, 0, 0.3], [20, 22.5, 3, 0], [20, 24, 0, 0],
-        #   [20, 10, 3, 0.3], [20, 10, 0, 0.3], [20, 22.5, 3, 0], [20, 24, 0, 0]]  # [p - degree, h - horizontal transition, k - vertical transition, a - angle]
+# # for the circ-rect example
+# sigmas = [[8, 1], [8, 1], [2, 6], [.5, 2], [8, 1], [8, 1], [2, 6], [.5, 2], [8, 1], [8, 1], [2, 6], [.5, 2]]
+# coords = [[20, 10, 3, 0.3], [20, 10, 0, 0.3], [20, 22.5, 3, 0], [20, 24, 0, 0],
+#           [20, 10, 3, 0.3], [20, 10, 0, 0.3], [20, 22.5, 3, 0], [20, 24, 0, 0],
+#           [20, 10, 3, 0.3], [20, 10, 0, 0.3], [20, 22.5, 3, 0], [20, 24, 0, 0]]  # [p - degree, h - horizontal transition, k - vertical transition, a - angle]
+
+# for the rect-rect example;
+# X0 = np.array([-5., -2., -math.pi/4]) Xf = np.array([6., 4, -math.pi/4])
+# ocp.lbu[0], ocp.ubu[0] = [-5, -math.pi/2], [5, math.pi/2]
+# original, doesn't work; kinda works with bounded time and robot_size [.9, .1]
+# sigmas = [[5, 1], [5, 1]]
+# coords = [[10, 2, 1-.6, math.pi/3], [10, 0, 2.5, math.pi/3]]
+# robot_size = [.9, 1.3]
+# working with robot_size = [.9, 1.5] but not with [.9, .5]
+sigmas = [[5, 1], [5, 1]]
+coords = [[20, 0, -.6, math.pi/3], [20, 0, 10.5, math.pi/3]]
+robot_size = [.9, 1.5]
+
+# # for the circ-rect example
+# # X0 = np.array([-3.11, -.11, -math.pi/4]) Xf = np.array([3.52, -.22, -math.pi/4])
+# # tf = 3.667 * math.pi
+# # ocp.lbu[0], ocp.ubu[0] = [-2*math.pi, -math.pi/2], [2*math.pi, math.pi/2]
+# sigmas = [[1, 1], [1, 1]]
+# coords = [[2, 2, -1.6, 0], [2, -1, 1.5, 0]]
+# robot_size = [2, 1]
+
 # also have to add offset to the obstacles +r +e ******************
 sigmas = [np.array(sigma) for sigma in sigmas]
-r = 0.35
-# ocp.path_constraints[0] = lambda x, u, t: [-wlps_ca(x, s+r, p, h, k, a) + 1 for s, [p, h, k, a] in zip(sigmas, coords)]
-ocp.path_constraints[0] = lambda x, u, t: [-rrcollision(np.array([x[0], x[1], x[2], robot_size[0], robot_size[1]]), np.array([h, k, a, s[0], s[1]]), i) + 1
-                                           for s, [p, h, k, a] in zip(sigmas, coords) for i in range(8)]
+ocp.path_constraints[0] = lambda x, u, t: [-wlps_ca(x, s+r, p, h, k, a) + 1 for s, [p, h, k, a] in zip(sigmas, coords)]
+# ocp.path_constraints[0] = lambda x, u, t: [-rrcollision(np.array([x[0], x[1], x[2], robot_size[0], robot_size[1], 20]), np.array([h, k, a, s[0], s[1], p]), i) + 1
+#                                            for s, [p, h, k, a] in zip(sigmas, coords) for i in range(8)]
 
+ocp.running_costs[0] = lambda x, u, t: 1
 # ocp.running_costs[0] = sqrt_cost
-# ocp.running_costs[0] = lambda x, u, t: 0.5 * (x[0] * x[0] + u[0] * u[0])
-Q = np.diag([0, 0, 0.01])          # don't turn too sharply
-R = np.diag([1, .1])               # keep inputs small
+# ocp.running_costs[0] = lambda x, u, t: 0.5 * (u[0] * u[0] + u[1] * u[1])
+Q = np.diag([0, 0, .1])          # don't turn too sharply
+R = np.diag([1, 1])               # keep inputs small
 P = np.diag([1000, 1000, 1000])
-ocp.running_costs[0] = lambda x, u, t: quadratic_cost(x, u, t, x0=Xf, u0=uf, Q=Q, R=R)
+# ocp.running_costs[0] = lambda x, u, t: quadratic_cost(x, u, t, x0=Xf, u0=uf, Q=Q, R=R) + 1
 # ocp.running_costs[0] = lambda x, u, t: quadratic_and_obstacle(x, u, t, x0=Xf, u0=uf, Q=Q, R=R, sigmas=sigmas, coords=coords)
 # ocp.running_costs[0] = lambda x, u, t: (u[0] * u[0] + u[1] * u[1])
 ocp.terminal_constraints[0] = lambda xf, tf, x0, t0: [xf[0]-Xf[0], xf[1]-Xf[1], xf[2]-Xf[2]]
-# ocp.terminal_costs[0] = lambda xf, tf, x0, t0: xf[0] - x0[0] + xf[1] - x0[1]
+# ocp.terminal_costs[0] = lambda xf, tf, x0, t0: xf[0] - x0[0] + xf[1] - x0[1] + xf[2] - x0[2]
 ocp.terminal_costs[0] = lambda xf, tf, x0, t0: quadratic_cost(x=x0, x0=xf, Q=P)
 # ocp.scale_x = [
 #     1 / 10.0,
@@ -307,7 +265,7 @@ ocp.terminal_costs[0] = lambda xf, tf, x0, t0: quadratic_cost(x=x0, x0=xf, Q=P)
 # ]
 
 # Create optimizer(mpo), solve and post process(post) the solution
-mpo, post = mp.solve(ocp, n_segments=100, poly_orders=1, scheme="LGR", plot=True, solve_dict={"ipopt.max_iter": 1000})
+mpo, post = mp.solve(ocp, n_segments=50, poly_orders=1, scheme="LGR", plot=True, solve_dict={"ipopt.max_iter": 1000})
 # mpo, post = mp.solve(ocp, n_segments=10, poly_orders=10, scheme="CGL", plot=True)
 # mpo, post = mp.solve(ocp, n_segments=5, poly_orders=5, scheme="LGL", plot=True)
 x, u, t, _ = post.get_data()

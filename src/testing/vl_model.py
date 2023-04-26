@@ -63,8 +63,8 @@ class Follower:
         # x_vl is the state vector of Virtual Leader at time step k+1
         x_new = x_vl[0] + self.d * np.cos(self.alpha + x_vl_prev[2])
         y_new = x_vl[1] + self.d * np.sin(self.alpha + x_vl_prev[2])
-        if round(u_vl[1], 16) != 0:  # ***VERIFY THAT IT'S A SATISFYING (WORKING) SOLUTION TO DIVIDING BY ZERO IN THE ACRTAN***
-            theta_new = np.arctan((y_new - self.state_ref[1]) / (x_new - self.state_ref[0]))
+        if u_vl[1] != 0:
+            theta_new = np.arctan2((y_new - self.state_ref[1]), (x_new - self.state_ref[0]))
         else:
             theta_new = x_vl_prev[2]
         self.state_ref_prev = self.state_ref
@@ -197,7 +197,7 @@ def main():
     ax.set_aspect('equal')
 
     # plot robot's footprint
-    n_arr = int(len(X) / 20)
+    n_arr = int(len(X) / 2)
     postures = [(X[i], Y[i], Theta[i]) for i in range(0, len(X), n_arr)]
     width, height = 2, 1
     point_of_rotation = np.array([width/2, height/2])

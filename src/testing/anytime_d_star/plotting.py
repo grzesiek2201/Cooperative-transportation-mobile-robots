@@ -10,13 +10,13 @@ import matplotlib.pyplot as plt
 sys.path.append(os.path.dirname(os.path.abspath(__file__)) +
                 "/../../Search_based_Planning/")
 
-from Search_2D import env
+import env
 
 
 class Plotting:
-    def __init__(self, xI, xG):
+    def __init__(self, xI, xG, width, height):
         self.xI, self.xG = xI, xG
-        self.env = env.Env()
+        self.env = env.Env(width, height)
         self.obs = self.env.obs_map()
 
     def update_obs(self, obs):

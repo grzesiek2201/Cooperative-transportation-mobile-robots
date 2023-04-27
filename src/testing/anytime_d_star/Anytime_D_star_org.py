@@ -11,8 +11,8 @@ import matplotlib.pyplot as plt
 sys.path.append(os.path.dirname(os.path.abspath(__file__)) +
                 "/../../Search_based_Planning/")
 
-from Search_2D import plotting
-from Search_2D import env_org
+import plotting
+import env_org
 
 
 class ADStar:

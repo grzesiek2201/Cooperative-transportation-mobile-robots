@@ -11,19 +11,19 @@ import matplotlib.pyplot as plt
 sys.path.append(os.path.dirname(os.path.abspath(__file__)) +
                 "/../../Search_based_Planning/")
 
-from Search_2D import plotting
-from Search_2D import env
+import plotting
+import env
 
 import math
 
 
 class ADStar:
-    def __init__(self, s_start, s_goal, eps, heuristic_type):
+    def __init__(self, s_start, s_goal, eps, heuristic_type, x=51, y=35):
         self.s_start, self.s_goal = s_start, s_goal
         self.heuristic_type = heuristic_type
 
-        self.Env = env.Env()  # class Env
-        self.Plot = plotting.Plotting(s_start, s_goal)
+        self.Env = env.Env(x, y)  # class Env
+        self.Plot = plotting.Plotting(s_start, s_goal, x, y)
 
         self.u_set = self.Env.motions  # feasible input set
         self.obs = self.Env.obs  # position of obstacles
@@ -52,7 +52,7 @@ class ADStar:
         self.obs_add = set()
         self.obs_remove = set()
         self.title = "Anytime D* Motion Primitives"  # Significant changes
-        self.fig = plt.figure()
+        self.fig = plt.figure(figsize=(8, 8))
 
     def run(self):
         self.Plot.plot_grid(self.title)
@@ -175,7 +175,7 @@ class ADStar:
     def ComputeOrImprovePath(self):
         while True:
             s, v = self.TopKey()
-            # s, v = self.GetKey() #????????????
+            # s, v = self.GetKey()
             if v >= self.Key(self.s_start) and \
                     self.rhs[self.s_start] == self.g[self.s_start]:
                 break
@@ -224,7 +224,7 @@ class ADStar:
 
     def GetKey(self):
         # s = self.OPEN.popitem()
-        s = next(iter(self.OPEN.values()))
+        s = next(iter(self.OPEN))
         return s, self.OPEN[s]
 
     def h(self, s_start, s_goal):
@@ -325,7 +325,7 @@ class ADStar:
         path = [self.s_start]
         s = self.s_start
 
-        for i in range(100):
+        for i in range(1000):
             g_list = {}
             for x, u in self.get_neighbor(s):
                 if not self.is_collision(s, x):
@@ -334,6 +334,11 @@ class ADStar:
             path.append(s)
             if s == self.s_goal:
                 break
+
+        # save path to file
+        with open("D:\\Projects\\cooperative_transportation\\src\\testing\\anytime_d_star\\path.csv", 'w') as f:
+            for state in list(path):
+                f.write(str(state[0]) + ', ' + str(state[1]) + ', ' + str(state[2]) + '\n')
 
         return list(path)
 
@@ -350,7 +355,6 @@ class ADStar:
 
     def plot_visited(self):
         self.count += 1
-
         color = ['gainsboro', 'lightgray', 'silver', 'darkgray',
                  'bisque', 'navajowhite', 'moccasin', 'wheat',
                  'powderblue', 'skyblue', 'lightskyblue', 'cornflowerblue']
@@ -363,16 +367,14 @@ class ADStar:
 
 
 def main():
-    # s_start = (5, 5)
-    # s_goal = (45, 25)
-    # s_start = (5, 5, 0)
-    # s_goal = (32, 25, math.pi*3/4)
+    s_start = (5, 5, 0)
+    s_goal = (32, 25, math.pi*3/4)
     # s_start = (4, 15, 0)
     # s_goal = (14, 25, 0)
-    s_start = (5, 5, 0)
-    s_goal = (45, 10, 0)
+    # s_start = (5, 5, 0)
+    # s_goal = (21, 5, math.pi)
 
-    dstar = ADStar(s_start, s_goal, 1, "euclidean")
+    dstar = ADStar(s_start, s_goal, 2.5, "euclidean", 51, 31)
     # dstar = ADStar(s_start, s_goal, 1, "euclidean")
     dstar.run()
 

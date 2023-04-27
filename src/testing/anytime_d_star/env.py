@@ -6,9 +6,9 @@ import math
 
 
 class Env:
-    def __init__(self):
-        self.x_range = 51  # size of background
-        self.y_range = 31
+    def __init__(self, x, y):
+        self.x_range = x  # size of background (51, 31)
+        self.y_range = y
         self.ori_res = 8
         self.orientations = [2 * math.pi / self.ori_res * res for res in range(self.ori_res)]
         # self.motions = [(-1, 0), (-1, 1), (0, 1), (1, 1),
@@ -28,10 +28,10 @@ class Env:
                                                      (0, 0, math.pi/4, self.cost_rot), (0, 0, -math.pi/4, self.cost_rot),   (-1, 1, -math.pi/4, self.cost_arc),     (-1, -1, math.pi/4, self.cost_arc)],
                                         "3/2pi":    [(0, -1, 0, self.cost_f),   (0, 1, 0, self.cost_b),     (-1, -1, -math.pi/2, self.cost_arc),    (1, -1, math.pi/2, self.cost_arc),      
                                                      (0, 0, math.pi/4, self.cost_rot), (0, 0, -math.pi/4, self.cost_rot),   (-1, -1, -math.pi/2, self.cost_arc),    (1, -1, math.pi/2, self.cost_arc)],
-                                        "1/4pi":    [(-1, -1, 0, self.cost_diag),   (1, 1, 0, self.cost_diag),     (0, 0, math.pi/4, self.cost_rot),   (0, 0, -math.pi/4, self.cost_rot)],
-                                        "3/4pi":    [(1, -1, 0, self.cost_diag),    (-1, 1, 0, self.cost_diag),      (0, 0, math.pi/4, self.cost_rot),   (0, 0, -math.pi/4, self.cost_rot)],
-                                        "5/4pi":    [(1, 1, 0, self.cost_diag),     (-1, -1, 0, self.cost_diag),  (0, 0, math.pi/4, self.cost_rot),   (0, 0, -math.pi/4, self.cost_rot)],
-                                        "7/4pi":    [(-1, 1, 0, self.cost_diag),    (1, -1, 0, self.cost_diag),  (0, 0, math.pi/4, self.cost_rot),   (0, 0, -math.pi/4, self.cost_rot)],
+                                        "1/4pi":    [(-1, -1, 0, self.cost_diag),   (1, 1, 0, self.cost_diag),      (0, 0, math.pi/4, self.cost_rot),   (0, 0, -math.pi/4, self.cost_rot)],
+                                        "3/4pi":    [(1, -1, 0, self.cost_diag),    (-1, 1, 0, self.cost_diag),     (0, 0, math.pi/4, self.cost_rot),   (0, 0, -math.pi/4, self.cost_rot)],
+                                        "5/4pi":    [(1, 1, 0, self.cost_diag),     (-1, -1, 0, self.cost_diag),    (0, 0, math.pi/4, self.cost_rot),   (0, 0, -math.pi/4, self.cost_rot)],
+                                        "7/4pi":    [(-1, 1, 0, self.cost_diag),    (1, -1, 0, self.cost_diag),     (0, 0, math.pi/4, self.cost_rot),   (0, 0, -math.pi/4, self.cost_rot)],
                                     }
             # (0, 0, math.pi/2, self.cost_rot), (0, 0, -math.pi/2, self.cost_rot),
             # (0, 0, math.pi/2, self.cost_rot), (0, 0, -math.pi/2, self.cost_rot),

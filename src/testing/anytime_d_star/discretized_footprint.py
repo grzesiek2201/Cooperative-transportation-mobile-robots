@@ -3,7 +3,6 @@ import math
 import numpy as np
 from matplotlib.patches import Rectangle
 from bresenham import bresenham
-from env import Env
 
 
 class Line:
@@ -167,33 +166,40 @@ def pix_from_cont_bresenham(rect, res=1):
 
 
 def get_conf_turn(radius, n_samples, start_angle, stop_angle, direction):
-    # start_angle = start_angle % (2*math.pi)
-    # stop_angle = stop_angle % (2*math.pi)
-    if direction == "right":
+    # start_angle %= (2*math.pi)
+    # stop_angle %= (2*math.pi)
+    if direction == "cw":
+
         start_angle += math.pi/2
         stop_angle += math.pi/2
-        angles = np.linspace(start_angle, stop_angle, n_samples)
-        # angle_step = abs(angles[1]) - abs(angles[0])
-        x_transf = radius * (1 - math.cos(start_angle))
+
+        x_transf = radius * math.cos(start_angle)
         y_transf = radius * math.sin(start_angle)
-        conf = []
-        for angle in angles:
-            x = radius * (1 - math.cos(angle)) - x_transf
-            y = radius * math.sin(angle) - y_transf
-            theta = math.pi/2 - angle
-            conf.append((x, y, theta))
-    elif direction == "left":
-        start_angle -= math.pi/2
-        stop_angle -= math.pi/2
+
         angles = np.linspace(start_angle, stop_angle, n_samples)
-        # angle_step = abs(angles[1]) - abs(angles[0])
-        x_transf = radius *  math.cos(start_angle)
-        y_transf = radius * math.sin(start_angle)
         conf = []
+
         for angle in angles:
             x = radius * math.cos(angle) - x_transf
             y = radius * math.sin(angle) - y_transf
-            theta = math.pi/2 + angle
+            theta = -(math.pi/2 - angle)
+            conf.append((x, y, theta))
+            
+    elif direction == "ccw":
+        start_angle -= math.pi/2
+        stop_angle -= math.pi/2
+
+        x_transf = radius *  math.cos(start_angle)
+        y_transf = radius * math.sin(start_angle)
+
+        angles = np.linspace(start_angle, stop_angle, n_samples)
+        conf = []
+
+        for angle in angles:
+            x = radius * math.cos(angle) - x_transf
+            y = radius * math.sin(angle) - y_transf
+            # theta = math.pi/2 + angle
+            theta = -(math.pi/2 - angle)
             conf.append((x, y, theta))  
     
     return conf
@@ -218,15 +224,14 @@ def orient_from_key(key):
         return math.pi*7/4
 
 
-def get_footprints():
+def get_footprints(mps, width=2.99, height=0.99, res=1):
     x, y, theta = 0, 0, 0
-    width, height = 2.99, .99  # [m]
-    res = 1  # [m]
+    width, height = width, height  # [m]
+    res = res  # [m]
 
     rect = vert_from_params((x, y, theta, width/2, height/2))  # get corners from position and width, height
 
-    env = Env(5, 5)
-    mps = env.export_mp()
+    mps = mps
 
     footprints = {}
 
@@ -239,7 +244,7 @@ def get_footprints():
             orient = orient_from_key(orientation)
             pixies = np.array([[]]).reshape(-1, 2)
             if motion[2] != 0:  # if there's rotation (turning)
-                dir = "right" if math.copysign(1, motion[2]) == -1 else "left"  # if sign positive -> move left, else right
+                dir = "cw" if math.copysign(1, motion[2]) == -1 else "ccw"  # if sign positive -> move ccw, else cw
                 trajectory = get_conf_turn(radius = abs(motion[0]), n_samples=5, start_angle=orient, stop_angle = orient+motion[2], direction=dir)
             
             elif abs(motion[0]) and abs(motion[1]):  # diagonal line
@@ -269,7 +274,7 @@ def main():
 
     # trajectory = [[0, 0, 0], [-2, 0, 0]]#[4, 0, math.pi/16], [8, 2, math.pi/8], [10, 5, math.pi/4], [12, 8, math.pi*3/8], [12, 12, math.pi/2]]
     trajectory = [[0, 0, math.pi/4], [2, 2, math.pi/4]]
-    trajectory = get_conf_turn(radius=5, n_samples=4, start_angle=0, stop_angle=math.pi/2, direction='right')
+    trajectory = get_conf_turn(radius=5, n_samples=4, start_angle=math.pi*2, stop_angle=math.pi/2, direction='ccw')
 
     rect = vert_from_params((x, y, theta, width/2, height/2))  # get corners from position and width, height
     pixies = np.array([[]]).reshape(-1, 2)
@@ -285,12 +290,10 @@ def main():
     print(pixies)
 
     
-    # fig = plt.figure()
     ax = plt.gca()
     ax.set_aspect('equal')
     for pix in pixies:
         ax.add_patch(Rectangle((pix[0]-.5*res, pix[1]-.5*res), 1*.9, 1*.9, 0))
-        # plt.plot(pix[0]+.5*res, pix[1]-.5*res, 'rs')
 
     for corner in temp_rect:
         plt.plot(corner[0]/res, corner[1]/res, 'sk')
@@ -301,14 +304,19 @@ def main():
 
 if __name__ == '__main__':
     # main()
-    footprints = get_footprints()
-    pixies = footprints["0pi"]
-    res = 1
-    
-    for pixers in pixies:
-        plt.figure()
-        ax = plt.gca()
-        for pix in pixers:
-            ax.add_patch(Rectangle((pix[0]-.5*res, pix[1]-.5*res), 1*.9, 1*.9, 0))
-        ax.set_aspect('equal')
-        plt.show()
+    from env import Env
+    env = Env(5, 5)
+    WIDTH = 2.99
+    HEIGHT = 0.99
+    res = .25
+    footprints = get_footprints(mps=env.motions_pi_backwards, width=WIDTH, height=HEIGHT, res=res)
+    for pixies in footprints.values():
+        # pixies = footprints["0pi"]
+        
+        for pixers in pixies:
+            plt.figure()
+            ax = plt.gca()
+            for pix in pixers:
+                ax.add_patch(Rectangle((pix[0]-.5*res, pix[1]-.5*res), 1*.9, 1*.9, 0))
+            ax.set_aspect('equal')
+            plt.show()

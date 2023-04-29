@@ -3,11 +3,13 @@ Env 2D
 @author: huiming zhou
 """
 import math
+from discretized_footprint import get_footprints
 
 
-F_0 = ((0.0, 0.0), (2.0, 0.0), (3.0, 0.0), (-1.0, 0.0), (1.0, 0.0))
-B_0 = ((0.0, 0.0), (-3.0, 0.0), (-1.0, 0.0), (-2.0, 0.0), (1.0, 0.0))
-F_45 = ((-1.0, -1.0), (0.0, 0.0), (1.0, 1.0), (3.0, 3.0), (2.0, 2.0))
+WIDTH = 5.99
+HEIGHT = 4.99
+RESOLUTION = 1
+
 
 class Env:
     def __init__(self, x, y):
@@ -32,33 +34,18 @@ class Env:
                             (0, 0, math.pi/4, self.cost_rot), (0, 0, -math.pi/4, self.cost_rot),   (-1, 1, -math.pi/4, self.cost_arc),     (-1, -1, math.pi/4, self.cost_arc)],
             "3/2pi":    [(0, -1, 0, self.cost_f),   (0, 1, 0, self.cost_b),     (-1, -1, -math.pi/2, self.cost_arc),    (1, -1, math.pi/2, self.cost_arc),      
                             (0, 0, math.pi/4, self.cost_rot), (0, 0, -math.pi/4, self.cost_rot),   (-1, -1, -math.pi/2, self.cost_arc),    (1, -1, math.pi/2, self.cost_arc)],
-            "1/4pi":    [(-1, -1, 0, self.cost_diag),   (1, 1, 0, self.cost_diag),      (0, 0, math.pi/4, self.cost_rot),   (0, 0, -math.pi/4, self.cost_rot)],
-            "3/4pi":    [(1, -1, 0, self.cost_diag),    (-1, 1, 0, self.cost_diag),     (0, 0, math.pi/4, self.cost_rot),   (0, 0, -math.pi/4, self.cost_rot)],
-            "5/4pi":    [(1, 1, 0, self.cost_diag),     (-1, -1, 0, self.cost_diag),    (0, 0, math.pi/4, self.cost_rot),   (0, 0, -math.pi/4, self.cost_rot)],
-            "7/4pi":    [(-1, 1, 0, self.cost_diag),    (1, -1, 0, self.cost_diag),     (0, 0, math.pi/4, self.cost_rot),   (0, 0, -math.pi/4, self.cost_rot)],
+            "1/4pi":    [(1, 1, 0, self.cost_diag),   (-1, -1, 0, self.cost_diag),      (0, 0, math.pi/4, self.cost_rot),   (0, 0, -math.pi/4, self.cost_rot)],
+            "3/4pi":    [(-1, 1, 0, self.cost_diag),    (1, -1, 0, self.cost_diag),     (0, 0, math.pi/4, self.cost_rot),   (0, 0, -math.pi/4, self.cost_rot)],
+            "5/4pi":    [(-1, -1, 0, self.cost_diag),     (1, 1, 0, self.cost_diag),    (0, 0, math.pi/4, self.cost_rot),   (0, 0, -math.pi/4, self.cost_rot)],
+            "7/4pi":    [(1, -1, 0, self.cost_diag),    (-1, 1, 0, self.cost_diag),     (0, 0, math.pi/4, self.cost_rot),   (0, 0, -math.pi/4, self.cost_rot)],
         }
-        # self.footprints = {
-        #     "0pi":      [F_0, B_0, ]
-        #     "1/2pi":     
-        #     "pi":       
-        #     "3/2pi":    
-        #     "1/4pi":    
-        #     "3/4pi":    
-        #     "5/4pi":    
-        #     "7/4pi":    
-        # }
+        self.footprints = get_footprints(mps=self.motions_pi_backwards, width=WIDTH, height=HEIGHT, res=RESOLUTION)
+
             # (0, 0, math.pi/2, self.cost_rot), (0, 0, -math.pi/2, self.cost_rot),
             # (0, 0, math.pi/2, self.cost_rot), (0, 0, -math.pi/2, self.cost_rot),
             # (0, 0, math.pi/2, self.cost_rot), (0, 0, -math.pi/2, self.cost_rot),
             # (0, 0, math.pi/2, self.cost_rot), (0, 0, -math.pi/2, self.cost_rot),
 
-        # # these work
-        # self.motions_pi_backwards = {
-        #                              "0pi": [(-1, 0, 0), (1, 0, 0), (-1, -1, math.pi/2), (-1, 1, -math.pi/2), (0, 0, math.pi/2), (0, 0, -math.pi/2)],
-        #                              "1/2pi": [(0, -1, 0), (0, 1, 0), (1, -1, math.pi/2), (-1, -1, -math.pi/2), (0, 0, math.pi/2), (0, 0, -math.pi/2)],
-        #                              "pi": [(1, 0, 0), (-1, 0, 0), (1, 1, math.pi/2), (1, -1, -math.pi/2), (0, 0, math.pi/2), (0, 0, -math.pi/2)],
-        #                              "3/2pi": [(0, 1, 0), (0, -1, 0), (-1, 1, math.pi/2), (1, 1, -math.pi/2), (0, 0, math.pi/2), (0, 0, -math.pi/2)],
-        #                             }
         self.motions = [(-1, 0, 0), (-1, 1, 0), (0, 1, 0), (1, 1, 0),
                         (1, 0, 0), (1, -1, 0), (0, -1, 0), (-1, -1, 0)]
         self.obs = self.obs_map()

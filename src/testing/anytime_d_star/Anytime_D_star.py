@@ -99,7 +99,7 @@ class ADStar:
 
                 self.Plot.update_obs(self.obs)
 
-                for sn, u in self.get_neighbor((x, y, 0)):
+                for sn, u, u_key in self.get_neighbor((x, y, 0)):
                     self.UpdateState(sn)
 
                 plt.cla()
@@ -144,11 +144,11 @@ class ADStar:
                         self.g[(x, y)] = float("inf")
                         self.rhs[(x, y)] = float("inf")
 
-                        for sn, u in self.get_neighbor(s):
+                        for sn, u, u_key in self.get_neighbor(s):
                             self.UpdateState(sn)
 
                     for s in self.obs_remove:
-                        for sn, u in self.get_neighbor(s):
+                        for sn, u, u_key in self.get_neighbor(s):
                             self.UpdateState(sn)
                         self.UpdateState(s)
 
@@ -186,19 +186,19 @@ class ADStar:
             if self.g[s] > self.rhs[s]:
                 self.g[s] = self.rhs[s]
                 self.CLOSED.add(s)
-                for sn, u in self.get_neighbor(s):
+                for sn, u, u_key in self.get_neighbor(s):
                     self.UpdateState(sn)
             else:
                 self.g[s] = float("inf")
-                for sn, u in self.get_neighbor(s):
+                for sn, u, u_key in self.get_neighbor(s):
                     self.UpdateState(sn)
                 self.UpdateState(s)
 
     def UpdateState(self, s):
         if s != self.s_goal:
             self.rhs[s] = float("inf")
-            for x, u in self.get_neighbor(s):
-                self.rhs[s] = min(self.rhs[s], self.g[x] + self.cost(s, x, u))
+            for x, u, u_key in self.get_neighbor(s):
+                self.rhs[s] = min(self.rhs[s], self.g[x] + self.cost(s, x, u, u_key))
         if s in self.OPEN:
             self.OPEN.pop(s)
 
@@ -235,9 +235,9 @@ class ADStar:
             return abs(s_goal[0] - s_start[0]) + abs(s_goal[1] - s_start[1])
         else:
             # return 1
-            return math.hypot(s_goal[0] - s_start[0], s_goal[1] - s_start[1]) + w * (s_goal[2] - s_start[2])
+            return math.hypot(s_goal[0] - s_start[0], s_goal[1] - s_start[1])# + w * (s_goal[2] - s_start[2])
 
-    def cost(self, s_start, s_goal, u):
+    def cost(self, s_start, s_goal, u, u_key):
         """
         Calculate Cost for this motion
         :param s_start: starting node
@@ -246,67 +246,70 @@ class ADStar:
         :note: Cost function could be more complicate!
         """
 
-        if self.is_collision(s_start, s_goal):
+        if self.is_collision(s_start, s_goal, u, u_key):
             return float("inf")
 
-        return math.hypot(s_goal[0] - s_start[0], s_goal[1] - s_start[1]) + u[3] * 1 # u[3] is weight of given motion primitive
+        return math.hypot(s_goal[0] - s_start[0], s_goal[1] - s_start[1]) + u[3] * 1 # u[3] is the weight of a given motion primitive
         # return u[3]
 
-    def is_collision(self, s_start, s_end):
-        if s_start[:2] in self.obs or s_end[:2] in self.obs:
-            return True
+    def is_collision(self, s_start, s_end, u, u_key):
+        # if s_start[:2] in self.obs or s_end[:2] in self.obs:
+        #     return True
 
-        if s_start[0] != s_end[0] and s_start[1] != s_end[1]:
-            if s_end[0] - s_start[0] == s_start[1] - s_end[1]:
-                s1 = (min(s_start[0], s_end[0]), min(s_start[1], s_end[1]))
-                s2 = (max(s_start[0], s_end[0]), max(s_start[1], s_end[1]))
-            else:
-                s1 = (min(s_start[0], s_end[0]), max(s_start[1], s_end[1]))
-                s2 = (max(s_start[0], s_end[0]), min(s_start[1], s_end[1]))
+        # if s_start[0] != s_end[0] and s_start[1] != s_end[1]:
+        #     if s_end[0] - s_start[0] == s_start[1] - s_end[1]:
+        #         s1 = (min(s_start[0], s_end[0]), min(s_start[1], s_end[1]))
+        #         s2 = (max(s_start[0], s_end[0]), max(s_start[1], s_end[1]))
+        #     else:
+        #         s1 = (min(s_start[0], s_end[0]), max(s_start[1], s_end[1]))
+        #         s2 = (max(s_start[0], s_end[0]), min(s_start[1], s_end[1]))
 
-            if s1 in self.obs or s2 in self.obs:
+        #     if s1 in self.obs or s2 in self.obs:
+        #         return True
+
+        # return False
+        mps = self.Env.motions_pi_backwards[u_key]  # all available motion primitives for given key
+        pixies = self.Env.footprints[u_key][mps.index(u)]  # footprint of the robot for given motion primitive
+        ####################################################################
+        for pix in pixies:
+            pixt = pix[0] + s_start[0], pix[1] + s_start[1]
+            if pixt in self.obs:
                 return True
-
         return False
 
     def get_neighbor(self, s):
         nei_list = set()
-        for u in self.get_motion_primitives(s):
-        # for u in self.u_set:
-            # s_new = [s[i] + u[i] for i in range(2)]
-            # if 0 < s_new[0] < self.Env.x_range - 1 and 0 < s_new[1] < self.Env.y_range - 1:
-            #     s_next = tuple([s[i] + u[i] for i in range(2)])
-            # s_new = [s[i] + u[i] for i in range(3)]
+        u_set, u_key = self.get_motion_primitives(s)
+        for u in u_set:
             s_new = (s[0] + u[0], s[1] + u[1], (s[2] + u[2]) % (2*math.pi))
             if 0 < s_new[0] < self.Env.x_range - 1 and 0 < s_new[1] < self.Env.y_range - 1:
-                # s_next = tuple([s[i] + u[i] for i in range(3)])
                 s_next = s_new
             else:
                 s_next = self.eg_obs
 
             if s_next not in self.obs:
-                nei_list.add((s_next, u))
+                nei_list.add((s_next, u, u_key))
 
         return nei_list
 
     def get_motion_primitives(self, s):
         # motion primitives available based on current orientation
         if s[2] == 0:
-            u = self.Env.motions_pi_backwards["0pi"]
+            u = self.Env.motions_pi_backwards["0pi"], "0pi"
         elif s[2] == math.pi/2:
-            u = self.Env.motions_pi_backwards["1/2pi"]
+            u = self.Env.motions_pi_backwards["1/2pi"], "1/2pi"
         elif s[2] == math.pi:
-            u = self.Env.motions_pi_backwards["pi"]
+            u = self.Env.motions_pi_backwards["pi"], "pi"
         elif s[2] == math.pi*3/2:
-            u = self.Env.motions_pi_backwards["3/2pi"]
+            u = self.Env.motions_pi_backwards["3/2pi"], "3/2pi"
         elif s[2] == math.pi*1/4:
-            u = self.Env.motions_pi_backwards["1/4pi"]
+            u = self.Env.motions_pi_backwards["1/4pi"], "1/4pi"
         elif s[2] == math.pi*3/4:
-            u = self.Env.motions_pi_backwards["3/4pi"]
+            u = self.Env.motions_pi_backwards["3/4pi"], "3/4pi"
         elif s[2] == math.pi*5/4:
-            u = self.Env.motions_pi_backwards["5/4pi"]
+            u = self.Env.motions_pi_backwards["5/4pi"], "5/4pi"
         elif s[2] == math.pi*7/4:
-            u = self.Env.motions_pi_backwards["7/4pi"]
+            u = self.Env.motions_pi_backwards["7/4pi"], "7/4pi"
             
         return u
 
@@ -327,8 +330,8 @@ class ADStar:
 
         for i in range(1000):
             g_list = {}
-            for x, u in self.get_neighbor(s):
-                if not self.is_collision(s, x):
+            for x, u, u_key in self.get_neighbor(s):
+                if not self.is_collision(s, x, u, u_key):
                     g_list[x] = self.g[x]
             s = min(g_list, key=g_list.get)
             path.append(s)
@@ -368,7 +371,7 @@ class ADStar:
 
 def main():
     s_start = (5, 5, 0)
-    s_goal = (32, 25, math.pi*3/4)
+    s_goal = (42, 25, math.pi*3/4)
     # s_start = (4, 15, 0)
     # s_goal = (14, 25, 0)
     # s_start = (5, 5, 0)

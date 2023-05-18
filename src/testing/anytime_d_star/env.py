@@ -7,7 +7,7 @@ from discretized_footprint import get_footprints
 
 
 WIDTH = 5.99
-HEIGHT = 4.99
+HEIGHT = 2.99
 RESOLUTION = 1
 
 
@@ -19,35 +19,37 @@ class Env:
         self.orientations = [2 * math.pi / self.ori_res * res for res in range(self.ori_res)]
         # self.motions = [(-1, 0), (-1, 1), (0, 1), (1, 1),
         #                 (1, 0), (1, -1), (0, -1), (-1, -1)]
-        # current working version
+        # costs
         self.cost_f = 1.0
         self.cost_b = 5.0
         self.cost_diag = 2.0
         self.cost_arc = 5
         self.cost_rot = 5
+        # *********** 45 DEGREE TURN HAS WRONG FOOTPRING ***************
+        # *********** IT IS BETTER APPROXIMATED WITH DIAGONAL THAN WITH ARC ************
         self.motions_pi_backwards = {
-            "0pi":      [(1, 0, 0, self.cost_f),    (-1, 0, 0, self.cost_b),    (1, -1, -math.pi/2, self.cost_arc),     (1, 1, math.pi/2, self.cost_arc),       
-                            (0, 0, math.pi/4, self.cost_rot), (0, 0, -math.pi/4, self.cost_rot),   (1, -1, -math.pi/4, self.cost_arc),     (1, 1, math.pi/4, self.cost_arc)],
-            "1/2pi":    [(0, 1, 0, self.cost_f),    (0, -1, 0, self.cost_b),    (1, 1, -math.pi/2, self.cost_arc),      (-1, 1, math.pi/2, self.cost_arc),      
-                            (0, 0, math.pi/4, self.cost_rot), (0, 0, -math.pi/4, self.cost_rot),   (1, 1, -math.pi/4, self.cost_arc),      (-1, 1, math.pi/4, self.cost_arc)],
-            "pi":       [(-1, 0, 0, self.cost_f),   (1, 0, 0, self.cost_b),     (-1, 1, -math.pi/2, self.cost_arc),     (-1, -1, math.pi/2, self.cost_arc),     
-                            (0, 0, math.pi/4, self.cost_rot), (0, 0, -math.pi/4, self.cost_rot),   (-1, 1, -math.pi/4, self.cost_arc),     (-1, -1, math.pi/4, self.cost_arc)],
-            "3/2pi":    [(0, -1, 0, self.cost_f),   (0, 1, 0, self.cost_b),     (-1, -1, -math.pi/2, self.cost_arc),    (1, -1, math.pi/2, self.cost_arc),      
-                            (0, 0, math.pi/4, self.cost_rot), (0, 0, -math.pi/4, self.cost_rot),   (-1, -1, -math.pi/2, self.cost_arc),    (1, -1, math.pi/2, self.cost_arc)],
-            "1/4pi":    [(1, 1, 0, self.cost_diag),   (-1, -1, 0, self.cost_diag),      (0, 0, math.pi/4, self.cost_rot),   (0, 0, -math.pi/4, self.cost_rot)],
-            "3/4pi":    [(-1, 1, 0, self.cost_diag),    (1, -1, 0, self.cost_diag),     (0, 0, math.pi/4, self.cost_rot),   (0, 0, -math.pi/4, self.cost_rot)],
-            "5/4pi":    [(-1, -1, 0, self.cost_diag),     (1, 1, 0, self.cost_diag),    (0, 0, math.pi/4, self.cost_rot),   (0, 0, -math.pi/4, self.cost_rot)],
-            "7/4pi":    [(1, -1, 0, self.cost_diag),    (-1, 1, 0, self.cost_diag),     (0, 0, math.pi/4, self.cost_rot),   (0, 0, -math.pi/4, self.cost_rot)],
+            "0pi":      [(1.0, .0, .0, self.cost_f),    (-1.0, .0, .0, self.cost_b),    (1.0, -1.0, -math.pi/2, self.cost_arc),     (1.0, 1.0, math.pi/2, self.cost_arc),       
+                            (.0, .0, math.pi/4, self.cost_rot), (.0, .0, -math.pi/4, self.cost_rot)],#,   (1.0, -1.0, -math.pi/4, self.cost_arc),     (1.0, 1.0, math.pi/4, self.cost_arc)],
+            "1/2pi":    [(.0, 1.0, .0, self.cost_f),    (.0, -1.0, .0, self.cost_b),    (1.0, 1.0, -math.pi/2, self.cost_arc),      (-1.0, 1.0, math.pi/2, self.cost_arc),      
+                            (.0, .0, math.pi/4, self.cost_rot), (.0, .0, -math.pi/4, self.cost_rot)],#,   (1.0, 1.0, -math.pi/4, self.cost_arc),      (-1.0, 1.0, math.pi/4, self.cost_arc)],
+            "pi":       [(-1.0, .0, .0, self.cost_f),   (1.0, .0, .0, self.cost_b),     (-1.0, 1.0, -math.pi/2, self.cost_arc),     (-1.0, -1.0, math.pi/2, self.cost_arc),     
+                            (.0, .0, math.pi/4, self.cost_rot), (.0, .0, -math.pi/4, self.cost_rot)],#,   (-1.0, 1.0, -math.pi/4, self.cost_arc),     (-1.0, -1.0, math.pi/4, self.cost_arc)],
+            "3/2pi":    [(.0, -1.0, .0, self.cost_f),   (.0, 1.0, .0, self.cost_b),     (-1.0, -1.0, -math.pi/2, self.cost_arc),    (1.0, -1.0, math.pi/2, self.cost_arc),      
+                            (.0, .0, math.pi/4, self.cost_rot), (.0, .0, -math.pi/4, self.cost_rot)],#,   (-1.0, -1.0, -math.pi/2, self.cost_arc),    (1.0, -1.0, math.pi/2, self.cost_arc)],
+            "1/4pi":    [(1.0, 1.0, .0, self.cost_diag),    (-1.0, -1.0, .0, self.cost_diag),   (.0, .0, math.pi/4, self.cost_rot),   (.0, .0, -math.pi/4, self.cost_rot)],
+            "3/4pi":    [(-1.0, 1.0, .0, self.cost_diag),   (1.0, -1.0, .0, self.cost_diag),    (.0, .0, math.pi/4, self.cost_rot),   (.0, .0, -math.pi/4, self.cost_rot)],
+            "5/4pi":    [(-1.0, -1.0, .0, self.cost_diag),  (1.0, 1.0, .0, self.cost_diag),     (.0, .0, math.pi/4, self.cost_rot),   (.0, .0, -math.pi/4, self.cost_rot)],
+            "7/4pi":    [(1.0, -1.0, .0, self.cost_diag),   (-1.0, 1.0, .0, self.cost_diag),    (.0, .0, math.pi/4, self.cost_rot),   (.0, .0, -math.pi/4, self.cost_rot)],
         }
         self.footprints = get_footprints(mps=self.motions_pi_backwards, width=WIDTH, height=HEIGHT, res=RESOLUTION)
 
-            # (0, 0, math.pi/2, self.cost_rot), (0, 0, -math.pi/2, self.cost_rot),
-            # (0, 0, math.pi/2, self.cost_rot), (0, 0, -math.pi/2, self.cost_rot),
-            # (0, 0, math.pi/2, self.cost_rot), (0, 0, -math.pi/2, self.cost_rot),
-            # (0, 0, math.pi/2, self.cost_rot), (0, 0, -math.pi/2, self.cost_rot),
+            # (.0, .0, math.pi/2, self.cost_rot), (.0, .0, -math.pi/2, self.cost_rot),
+            # (.0, .0, math.pi/2, self.cost_rot), (.0, .0, -math.pi/2, self.cost_rot),
+            # (.0, .0, math.pi/2, self.cost_rot), (.0, .0, -math.pi/2, self.cost_rot),
+            # (.0, .0, math.pi/2, self.cost_rot), (.0, .0, -math.pi/2, self.cost_rot),
 
-        self.motions = [(-1, 0, 0), (-1, 1, 0), (0, 1, 0), (1, 1, 0),
-                        (1, 0, 0), (1, -1, 0), (0, -1, 0), (-1, -1, 0)]
+        self.motions = [(-1.0, .0, .0), (-1.0, 1.0, .0), (.0, 1.0, .0), (1.0, 1.0, .0),
+                        (1.0, .0, .0), (1.0, -1.0, .0), (.0, -1.0, .0), (-1.0, -1.0, .0)]
         self.obs = self.obs_map()
 
     def update_obs(self, obs):
@@ -90,6 +92,9 @@ class Env:
             obs.add((40, i))
         # for i in range(16):
         #     obs.add((41, i))
+
+        for i in range(17, 23):
+            obs.add((i, 19))
 
         return obs
 

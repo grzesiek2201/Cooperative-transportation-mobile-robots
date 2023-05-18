@@ -37,9 +37,11 @@ if __name__ == '__main__':
     ax.set_aspect('equal')
 
     fronts = [[], []]
-    width, height = 2, 1
+    width, height = 6, 3
     point_of_rotation = np.array([width/2, height/2])
-    for posture in postures:
+    for i, posture in enumerate(postures):
+        # if i%2:
+        #     continue
         rec = RotatingRectangle((posture[0], posture[1]), width=width, height=height, 
                         rel_point_of_rot=point_of_rotation,
                         angle=posture[2]*180.0/np.pi, color='black', alpha=0.9,

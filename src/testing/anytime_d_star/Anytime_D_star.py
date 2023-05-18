@@ -7,6 +7,7 @@ import os
 import sys
 import math
 import matplotlib.pyplot as plt
+import numpy as np
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__)) +
                 "/../../Search_based_Planning/")
@@ -15,6 +16,23 @@ import plotting
 import env
 
 import math
+
+
+from functools import wraps
+from time import time
+
+from traj_from_path import traj_from_path
+
+
+def timing(f):
+    @wraps(f)
+    def wrap(*args, **kwargs):
+        ts = time()
+        result = f(*args, **kwargs)
+        tf = time()
+        print(f"func: {f.__name__} took: {round(tf - ts, 4)} sec")
+        return result
+    return wrap
 
 
 class ADStar:
@@ -58,7 +76,10 @@ class ADStar:
         self.Plot.plot_grid(self.title)
         self.ComputeOrImprovePath()
         self.plot_visited()
-        self.plot_path(self.extract_path())
+        path = self.extract_path()
+        self.plot_path(path)
+        mps_list = self.mps_from_path(path)
+        # traj_from_path(x0=self.s_start, path=mps_list, mps=self.Env.motions_pi_backwards, t=10, vmax=1, wmax=1, a=1, e=1, res=1)
         self.visited = set()
 
         while True:
@@ -172,10 +193,10 @@ class ADStar:
 
             self.fig.canvas.draw_idle()
 
+    @timing
     def ComputeOrImprovePath(self):
         while True:
             s, v = self.TopKey()
-            # s, v = self.GetKey()
             if v >= self.Key(self.s_start) and \
                     self.rhs[self.s_start] == self.g[self.s_start]:
                 break
@@ -223,7 +244,6 @@ class ADStar:
         return s, self.OPEN[s]
 
     def GetKey(self):
-        # s = self.OPEN.popitem()
         s = next(iter(self.OPEN))
         return s, self.OPEN[s]
 
@@ -242,6 +262,8 @@ class ADStar:
         Calculate Cost for this motion
         :param s_start: starting node
         :param s_goal: end node
+        :param u: control command
+        :param u_key: control command key
         :return:  Cost for this motion
         :note: Cost function could be more complicate!
         """
@@ -250,27 +272,15 @@ class ADStar:
             return float("inf")
 
         return math.hypot(s_goal[0] - s_start[0], s_goal[1] - s_start[1]) + u[3] * 1 # u[3] is the weight of a given motion primitive
-        # return u[3]
 
     def is_collision(self, s_start, s_end, u, u_key):
-        # if s_start[:2] in self.obs or s_end[:2] in self.obs:
-        #     return True
-
-        # if s_start[0] != s_end[0] and s_start[1] != s_end[1]:
-        #     if s_end[0] - s_start[0] == s_start[1] - s_end[1]:
-        #         s1 = (min(s_start[0], s_end[0]), min(s_start[1], s_end[1]))
-        #         s2 = (max(s_start[0], s_end[0]), max(s_start[1], s_end[1]))
-        #     else:
-        #         s1 = (min(s_start[0], s_end[0]), max(s_start[1], s_end[1]))
-        #         s2 = (max(s_start[0], s_end[0]), min(s_start[1], s_end[1]))
-
-        #     if s1 in self.obs or s2 in self.obs:
-        #         return True
-
-        # return False
         mps = self.Env.motions_pi_backwards[u_key]  # all available motion primitives for given key
         pixies = self.Env.footprints[u_key][mps.index(u)]  # footprint of the robot for given motion primitive
-        ####################################################################
+        # will it work more efficient with numpy search? from what i tested so far - no
+        # pixies = pixies + s_start[:2]
+        # for pix in pixies:
+        #     if (pix[0], pix[1]) in self.obs:
+        #         return True
         for pix in pixies:
             pixt = pix[0] + s_start[0], pix[1] + s_start[1]
             if pixt in self.obs:
@@ -354,7 +364,44 @@ class ADStar:
         plt.plot(self.s_goal[0], self.s_goal[1], "gs")
         
         xy = [(x, y, t) for x, y, t in zip(px, py, pt)]
-        print(xy)
+        # print(xy)
+
+    def mps_from_path(self, path):
+        # get motion primitives according to points in path
+        ps = [(x[0], x[1], x[2]) for x in path]
+        mps_all = self.Env.motions_pi_backwards
+        path_mps = []
+        for i in range(len(ps)-1):
+            # maybe only using the move and not key and index of motion primitive would be sufficient, might be worth to try it
+            move = tuple(ps[i+1][j] - ps[i][j] for j in range(3))  # difference in configuration between two neighboring points
+            u, u_key = self.get_motion_primitives(ps[i])
+            # mps = []
+            # for k in range(len(mps_all[u_key])):
+            #     mp = mps_all[u_key][k]
+            #     mp = (mp[0], mp[1], mp[2] % (2*math.pi))
+            #     mps.append(mp)
+            mps = [mps_all[u_key][k][:3] for k in range(len(mps_all[u_key]))]  # get rid of the cost for motion primitives to allow for search in the next line
+            # !!!!!!! wrap the angle to (-pi, pi) coz otherwise it won't search properly when e.g. move[2] == 3/2pi !!!!!!!!
+            if move[2] >= math.pi:
+                move = (move[0], move[1], -(move[2] % math.pi))
+                # move[2] % math.pi * math.copysign(move[2])
+            elif move[2] <= -math.pi:
+                move = (move[0], move[1], move[2] % math.pi)
+            mp = mps.index(move)
+            path_mps.append((u_key, mp))
+
+        # # DEBUGGING
+        # # check if path_mps is correct
+        # conf = self.s_start
+        # pathv2 = [self.s_start]
+        # for mp in path_mps:
+        #     mp = self.Env.motions_pi_backwards[mp[0]][mp[1]]
+        #     pathv2.append((conf[0] + mp[0], conf[1] + mp[1], (conf[2] + mp[2]) % (2*math.pi)))
+        #     conf = pathv2[-1]
+        # for i in range(len(pathv2)):
+        #     if path[i] != pathv2[i]:
+        #         print(i)
+        return path_mps
 
     def plot_visited(self):
         self.count += 1

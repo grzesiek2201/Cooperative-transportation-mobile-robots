@@ -7,6 +7,7 @@ import aerosandbox.numpy as np  # to help with writing functions as numpy instea
 import pandas as pd
 from pathlib import Path
 import math
+from vl_model import RotatingRectangle
 
 
 def dynamics(x, u, t):  # kinematics?
@@ -193,24 +194,30 @@ xs = ca.SX.sym('xs', 1)
 ys = ca.SX.sym('ys', 1)
 wlps_ca_simple = ca.Function('wlps_simple', [xs, ys, s, p], [ca.power(ca.power(ca.fabs(xs) / s[0], p) +\
                                                                       ca.power(ca.fabs(ys) / s[1], p), 1/p)])
+# for rect robot - circ obstacle
+# xs, ys - robot position, s - robot sigma (halfwidths), x - obstacle position, p - norm rank 
+wlps_ca_c = ca.Function('wlps_c', [xs, ys, s, x, p], [ca.power( ca.power(ca.fabs(x[0] - xs) / s[0], p) +\
+                                                                ca.power(ca.fabs(x[1] - ys) / s[1], p), 1/p)])
 
 r = 0.35
-X0 = np.array([-5., -2., -math.pi/4]); u0 = np.array([0, 0])
-Xf = np.array([6., 4, -math.pi/4]); uf = np.array([0., 0.])
-tf = 3.667 * math.pi
+X0 = np.array([0, 0, 0]); u0 = np.array([0., 0.])
+Xf = np.array([10, 0.1, 0]); uf = np.array([0., 0.])
+tf = 5
 circle = (5, 0, 3)
 
 # Define OCP
 ocp = mp.OCP(n_states=3, n_controls=2, n_phases=1)
 ocp.dynamics[0] = dynamics
 ocp.x00[0] = X0
-ocp.xf0[0][0] = Xf[0]; ocp.xf0[0][1] = Xf[1]#; ocp.xf0[0][2] = Xf[2]
-# ocp.u00[0] = u0
-# ocp.uf0[0] = uf
-ocp.lbu[0], ocp.ubu[0] = [-5, -math.pi/2], [5, math.pi/2]  # if the input constraints are too restrictive the solution is often not found
+ocp.xf0[0][0] = Xf[0]; ocp.xf0[0][1] = Xf[1]; ocp.xf0[0][2] = Xf[2]
+ocp.u00[0] = u0
+ocp.uf0[0] = uf
+ocp.lbu[0], ocp.ubu[0] = [-2, -math.pi/2], [2, math.pi/2]  # if the input constraints are too restrictive the solution is often not found
 ocp.lbtf[0] = tf
 ocp.ubtf[0] = tf*2
-# ocp.scale_t = 1 / tf
+# ocp.scale_t = 1 / (2*tf)
+# ocp.lbx[0] = 
+# ocp.ubx[0] = 
 
 # ocp.path_constraints[0] = lambda x, u, t: [-(x[0] - circle[0])**2 - (x[1]-circle[1])**2 + circle[2]**2]
 # the lambda function must return array of values that represent constraints, so iterate through all the obstacles and their transformations to robot frame
@@ -220,17 +227,17 @@ ocp.ubtf[0] = tf*2
 #           [20, 10, 3, 0.3], [20, 10, 0, 0.3], [20, 22.5, 3, 0], [20, 24, 0, 0],
 #           [20, 10, 3, 0.3], [20, 10, 0, 0.3], [20, 22.5, 3, 0], [20, 24, 0, 0]]  # [p - degree, h - horizontal transition, k - vertical transition, a - angle]
 
-# for the rect-rect example;
-# X0 = np.array([-5., -2., -math.pi/4]) Xf = np.array([6., 4, -math.pi/4])
-# ocp.lbu[0], ocp.ubu[0] = [-5, -math.pi/2], [5, math.pi/2]
-# original, doesn't work; kinda works with bounded time and robot_size [.9, .1]
+# # for the rect-rect example;
+# # X0 = np.array([-5., -2., -math.pi/4]) Xf = np.array([6., 4, -math.pi/4])
+# # ocp.lbu[0], ocp.ubu[0] = [-5, -math.pi/2], [5, math.pi/2]
+# # original, doesn't work; kinda works with bounded time and robot_size [.9, .1]
+# # sigmas = [[5, 1], [5, 1]]
+# # coords = [[10, 2, 1-.6, math.pi/3], [10, 0, 2.5, math.pi/3]]
+# # robot_size = [.9, 1.3]
+# # working with robot_size = [.9, 1.5] but not with [.9, .5]
 # sigmas = [[5, 1], [5, 1]]
-# coords = [[10, 2, 1-.6, math.pi/3], [10, 0, 2.5, math.pi/3]]
-# robot_size = [.9, 1.3]
-# working with robot_size = [.9, 1.5] but not with [.9, .5]
-sigmas = [[5, 1], [5, 1]]
-coords = [[20, 0, -.6, math.pi/3], [20, 0, 10.5, math.pi/3]]
-robot_size = [.9, 1.5]
+# coords = [[20, 0, -.6, math.pi/3], [20, 0, 10.5, math.pi/3]]
+# robot_size = [.9, 1.5]
 
 # # for the circ-rect example
 # # X0 = np.array([-3.11, -.11, -math.pi/4]) Xf = np.array([3.52, -.22, -math.pi/4])
@@ -240,29 +247,47 @@ robot_size = [.9, 1.5]
 # coords = [[2, 2, -1.6, 0], [2, -1, 1.5, 0]]
 # robot_size = [2, 1]
 
+# # for demonstration purposes
+# # X0 = np.array([0, 0, 0]); u0=np.array([0, 0])
+# # Xf = np.array([10, 2, math.pi/2]); uf = np.array([0., 0.])
+# # ocp.lbu[0], ocp.ubu[0] = [-2*math.pi, -math.pi/2], [2*math.pi, math.pi/2]
+sigmas = [[2, 2], [1 ,1]]
+coords = [[2, 5, 0, 0], [2, 10, 3, 0]]
+# r = 0
+robot_size = [1, .5]
+# sigmas = []
+# coords = []
+
 # also have to add offset to the obstacles +r +e ******************
 sigmas = [np.array(sigma) for sigma in sigmas]
-ocp.path_constraints[0] = lambda x, u, t: [-wlps_ca(x, s+r, p, h, k, a) + 1 for s, [p, h, k, a] in zip(sigmas, coords)]
+# ocp.path_constraints[0] = lambda x, u, t: [-wlps_ca(x, s+r, p, h, k, a) + 1 for s, [p, h, k, a] in zip(sigmas, coords)]
 # ocp.path_constraints[0] = lambda x, u, t: [-rrcollision(np.array([x[0], x[1], x[2], robot_size[0], robot_size[1], 20]), np.array([h, k, a, s[0], s[1], p]), i) + 1
 #                                            for s, [p, h, k, a] in zip(sigmas, coords) for i in range(8)]
+# rect robot - circ obstacle
+ocp.path_constraints[0] = lambda x, u, t: [-wlps_ca_simple(h - x[0], k - x[1], robot_size + s, 20) + 1 
+                                           for s, [p, h, k, a] in zip(sigmas, coords)]
 
-ocp.running_costs[0] = lambda x, u, t: 1
+# ocp.running_costs[0] = lambda x, u, t: 1
 # ocp.running_costs[0] = sqrt_cost
 # ocp.running_costs[0] = lambda x, u, t: 0.5 * (u[0] * u[0] + u[1] * u[1])
-Q = np.diag([0, 0, .1])          # don't turn too sharply
+Q = np.diag([0, 0, 1])          # don't turn too sharply
 R = np.diag([1, 1])               # keep inputs small
 P = np.diag([1000, 1000, 1000])
-# ocp.running_costs[0] = lambda x, u, t: quadratic_cost(x, u, t, x0=Xf, u0=uf, Q=Q, R=R) + 1
+ocp.running_costs[0] = lambda x, u, t: quadratic_cost(x, u, t, x0=Xf, u0=uf, Q=Q, R=R) + 1
 # ocp.running_costs[0] = lambda x, u, t: quadratic_and_obstacle(x, u, t, x0=Xf, u0=uf, Q=Q, R=R, sigmas=sigmas, coords=coords)
-# ocp.running_costs[0] = lambda x, u, t: (u[0] * u[0] + u[1] * u[1])
+# ocp.running_costs[0] = lambda x, u, t: (1/2 * (u[0] * u[0] + u[1] * u[1]))
+# ocp.running_costs[0] = lambda x, u, t: ca.power(u[0] - uf[0], 2) + ca.power(u[1] - uf[1], 2)  # not usable
 ocp.terminal_constraints[0] = lambda xf, tf, x0, t0: [xf[0]-Xf[0], xf[1]-Xf[1], xf[2]-Xf[2]]
-# ocp.terminal_costs[0] = lambda xf, tf, x0, t0: xf[0] - x0[0] + xf[1] - x0[1] + xf[2] - x0[2]
-ocp.terminal_costs[0] = lambda xf, tf, x0, t0: quadratic_cost(x=x0, x0=xf, Q=P)
+ocp.terminal_costs[0] = lambda xf, tf, x0, t0: quadratic_cost(x=Xf, x0=xf, Q=P)  # was (x=x0, x0=xf, Q=P)  # doesn't seem to work (works but not always)
+# ocp.terminal_costs[0] = lambda xf, tf, x0, t0: tf  # the final cost is the final time
+# ocp.terminal_costs[0] = lambda xf, tf, x0, t0: 1* (ca.power(Xf[0] - xf[0], 2) + ca.power(Xf[1] - xf[1], 2) + ca.power(Xf[2] - xf[2], 2))  # works well with simple example
 # ocp.scale_x = [
 #     1 / 10.0,
 #     1 / 10.0,
 #     1 / 10.0
 # ]
+
+
 
 # Create optimizer(mpo), solve and post process(post) the solution
 mpo, post = mp.solve(ocp, n_segments=50, poly_orders=1, scheme="LGR", plot=True, solve_dict={"ipopt.max_iter": 1000})
@@ -279,11 +304,7 @@ results.to_csv(path, index=False)
 # Plotting the result
 RESOLUTION = (200, 200)
 XY_RANGE = [[-10., 30.], [-10., 15.]]
-S = np.array([2, 1])
-P = 20
 POINT_SIZE = 2
-R = .5
-E = 0.01
 
 X = np.linspace(XY_RANGE[0][0], XY_RANGE[0][1], RESOLUTION[0])
 Y = np.linspace(XY_RANGE[1][0], XY_RANGE[1][1], RESOLUTION[1])
@@ -300,12 +321,31 @@ for s, [p, h, k, a] in zip(sigmas,coords):
 plt.scatter(result[:, 0], result[:, 1])
 
 # plt.subplot(3, 1, 1)
+ax = plt.gca()
+ax.set_axisbelow(True)
+ax.yaxis.grid(color='gray', linewidth=0.5, alpha=.5)
+ax.xaxis.grid(color='gray', linewidth=0.5, alpha=.5)
 plt.plot(x[:,0], x[:,1], linewidth=1, c='r')
 plt.plot(X0[0], X0[1], 'ro', Xf[0], Xf[1], 'ro')
 plt.xlabel("x [m]")
 plt.ylabel("y [m]")
+plt.title("Planned path")
+ax.set_aspect('equal')
 ax = plt.gca()
-circle1 = plt.Circle((circle[0], circle[1]), circle[2], color='r')
+
+# plot robot's footprint
+n_arr = int(len(x[:,0]) / 10)
+postures = [(x[:,0][i], x[:,1][i], x[:,2][i]) for i in range(0, len(x[:,0]), n_arr)]
+width, height = robot_size[0]*2, robot_size[1]*2
+point_of_rotation = np.array([width/2, height/2])
+for posture in postures:
+    rec = RotatingRectangle((posture[0], posture[1]), width=width, height=height, 
+                    rel_point_of_rot=point_of_rotation,
+                    angle=posture[2]*180.0/np.pi, color='black', alpha=0.9,
+                    fill=None)
+    ax.add_patch(rec)
+
+# circle1 = plt.Circle((circle[0], circle[1]), circle[2], color='r')
 # ax.add_patch(circle1)
 # ax.set_aspect('equal', adjustable='box')
 plt.show()

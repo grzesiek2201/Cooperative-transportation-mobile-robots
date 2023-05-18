@@ -49,8 +49,8 @@ def circle(xy, r):
 
 RESOLUTION = (200, 200)
 XY_RANGE = [[-5., 5.], [-5., 5.]]
-S = np.array([2, 1])
-P = 20
+S = np.array([4, 1])
+P = 15
 POINT_SIZE = 2
 R = .5
 E = 0.01

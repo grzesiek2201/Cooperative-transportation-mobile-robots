@@ -263,6 +263,7 @@ def get_footprints(mps, width=2.99, height=0.99, res=1):
                 temp_rect = rotate_around_point(temp_rect, theta, (x, y))
                 pixies = np.vstack((pixies, pix_from_cont_bresenham(temp_rect, res)))
             footprints[orientation].append(set(map(tuple, pixies)))
+            # footprints[orientation].append(np.array(list(set(map(tuple, pixies)))))
     
     return footprints
 

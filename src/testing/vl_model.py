@@ -161,9 +161,12 @@ def main():
             t = T[i+1]
             ts = t - t0
             # previous state
+            # x_prev = leader.x
             x_prev = leader.x
+            # leader.state_ref_prev = leader.state_ref
             # update the leader position based on control vector and time period
-            leader.update_pos(u[0], u[1], ts)
+            leader.x = np.array([X[i+1], Y[i+1], Theta[i+1]])  # the updating didn't work and there was an error on the path, so it's now directly copied from trajectory
+            # leader.update_pos(u[0], u[1], ts)
             # update followers position
             follower1.update_pos(leader.x, x_prev, u)
             follower2.update_pos(leader.x, x_prev, u)
@@ -197,7 +200,7 @@ def main():
     ax.set_aspect('equal')
 
     # plot robot's footprint
-    n_arr = int(len(X) / 2)
+    n_arr = int(len(X) / 10)
     postures = [(X[i], Y[i], Theta[i]) for i in range(0, len(X), n_arr)]
     width, height = 2, 1
     point_of_rotation = np.array([width/2, height/2])

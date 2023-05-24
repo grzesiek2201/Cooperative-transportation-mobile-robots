@@ -143,7 +143,7 @@ def inter_points(x0, path, path_mps, mps, vmax, wmax, a, e) -> tuple:
     # return intermediate points between node points : states
     # and points where the section begins or ends : seg_ind
     segments = segments_from_path(path=path, path_mps=path_mps, mps=mps)
-    num_ang_inte = 20
+    num_ang_inte = 10
     num_lin_inte = 50
     # travelled_distance = 0
     prev_state = x0
@@ -180,6 +180,9 @@ def inter_points(x0, path, path_mps, mps, vmax, wmax, a, e) -> tuple:
         else:
             for i in range(len(segment)):
                 ori_dif = segment[i][2] - prev_state[2]  # will probably not work straigh away due to 2pi wrap
+                # ori_dif = (ori_dif % -math.pi) if ori_dif >= math.pi else ori_dif % math.pi
+                # ori_dif = ori_dif % math.pi
+                # if ori_dif >
                 if ori_dif == 0:    #  straight movement, no rotation
                     intr_lin_x = np.linspace(prev_state[0], segment[i][0], num=num_lin_inte)
                     intr_lin_y = np.linspace(prev_state[1], segment[i][1], num=num_lin_inte)
@@ -194,8 +197,9 @@ def inter_points(x0, path, path_mps, mps, vmax, wmax, a, e) -> tuple:
 
                 else:   # turn (linear and angular speed)
                     new_state = segment[i]
-                    ori_dif = new_state[2] - prev_state[2]  # will probably not work straigh away due to 2pi wrap
+                    # ori_dif = new_state[2] - prev_state[2]  # will probably not work straigh away due to 2pi wrap
                     radius = new_state[0] - prev_state[0]
+                    ori_dif = ori_dif if ori_dif <= math.pi else ori_dif % (-math.pi)
                     dir = "cw" if math.copysign(1, ori_dif) == -1 else "ccw"  # if sign positive -> move ccw, else cw
                     intr_states = get_conf_turn(abs(radius), n_samples=num_lin_inte, start_angle=prev_state[2], stop_angle=new_state[2], direction=dir)
                     x0 = prev_state[0]; y0 = prev_state[1]

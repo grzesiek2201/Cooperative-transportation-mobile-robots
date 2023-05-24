@@ -417,7 +417,7 @@ def main():
     # s_start = (4, 15, 0)
     # s_goal = (14, 25, 0)
     # s_start = (5, 5, 0)
-    s_goal = (25, 5, math.pi)
+    # s_goal = (25, 5, math.pi)
 
     dstar = ADStar(s_start, s_goal, 2.5, "euclidean", 51, 31, robot_size=[5.99, 2.99], res=1)
     # dstar = ADStar(s_start, s_goal, 1, "euclidean")

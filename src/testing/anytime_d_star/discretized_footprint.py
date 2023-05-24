@@ -172,9 +172,15 @@ def get_conf_turn(radius, n_samples, start_angle, stop_angle, direction):
 
         start_angle += math.pi/2
         stop_angle += math.pi/2
+        # start_angle = start_angle + math.pi/2 if start_angle > 0 else (start_angle % (2*math.pi)) - math.pi/2
+        # stop_angle = stop_angle + math.pi/2 if stop_angle > 0 else (stop_angle % (2*math.pi)) - math.pi/2
+        start_angle %= (2*math.pi)
+        stop_angle %= (2*math.pi)
 
         x_transf = radius * math.cos(start_angle)
         y_transf = radius * math.sin(start_angle)
+
+        stop_angle = stop_angle % (-math.pi) if stop_angle >= math.pi else stop_angle
 
         angles = np.linspace(start_angle, stop_angle, n_samples)
         conf = []
@@ -188,6 +194,11 @@ def get_conf_turn(radius, n_samples, start_angle, stop_angle, direction):
     elif direction == "ccw":
         start_angle -= math.pi/2
         stop_angle -= math.pi/2
+        start_angle %= (2*math.pi)
+        stop_angle %= (2*math.pi)
+        # start_angle = start_angle + math.pi/2 if start_angle > 0 else (start_angle % (2*math.pi)) - math.pi/2
+        # stop_angle = stop_angle + math.pi/2 if stop_angle > 0 else (stop_angle % (2*math.pi)) - math.pi/2
+        start_angle = start_angle % (-math.pi) if start_angle > math.pi else start_angle
 
         x_transf = radius *  math.cos(start_angle)
         y_transf = radius * math.sin(start_angle)
@@ -276,7 +287,7 @@ def main():
 
     # trajectory = [[0, 0, 0], [-2, 0, 0]]#[4, 0, math.pi/16], [8, 2, math.pi/8], [10, 5, math.pi/4], [12, 8, math.pi*3/8], [12, 12, math.pi/2]]
     # trajectory = [[0, 0, 0], [2, 2, math.pi/2]]   
-    trajectory = get_conf_turn(radius=5, n_samples=30, start_angle=0, stop_angle=math.pi/2, direction='ccw')
+    trajectory = get_conf_turn(radius=5, n_samples=30, start_angle=-math.pi/2, stop_angle=0, direction='ccw')
 
     rect = vert_from_params((x, y, theta, width/2, height/2))  # get corners from position and width, height
     pixies = np.array([[]]).reshape(-1, 2)

@@ -174,10 +174,12 @@ def to_oframe(robot, rectangle, deg=False):
 def translate_corners(rectangle, xy):
     return [(corner[0] + xy[0], corner[1] + xy[1]) for corner in ca.vertsplit(rectangle, 1)]
 
-def rotate_origin(rectangle, angle):
+def rotate_origin(rectangle, angle, point=False):
     # rotate rectangle around (0, 0)
-    return [(ca.cos(angle) * corner[0] - ca.sin(angle) * corner[1], ca.sin(angle) * corner[0] + ca.cos(angle) * corner[1]) for corner in rectangle]
+    if not point:
+        return [(ca.cos(angle) * corner[0] - ca.sin(angle) * corner[1], ca.sin(angle) * corner[0] + ca.cos(angle) * corner[1]) for corner in rectangle]
 
+    return (ca.cos(angle) * rectangle[0] - ca.sin(angle) * rectangle[1], ca.sin(angle) * rectangle[0] + ca.cos(angle) * rectangle[1])
 
 
 x = ca.SX.sym('x', 3)
@@ -201,12 +203,12 @@ wlps_ca_c = ca.Function('wlps_c', [xs, ys, s, x, p], [ca.power( ca.power(ca.fabs
 
 r = 0.35
 X0 = np.array([0, 0, 0]); u0 = np.array([0., 0.])
-Xf = np.array([10, 0.1, 0]); uf = np.array([0., 0.])
+Xf = np.array([12, 0.1, 0]); uf = np.array([0., 0.])
 tf = 5
 circle = (5, 0, 3)
 
 # Define OCP
-ocp = mp.OCP(n_states=3, n_controls=2, n_phases=1)
+ocp = mp.OCP(n_states=3, n_controls=2, n_phases=1, solver="scpgen")
 ocp.dynamics[0] = dynamics
 ocp.x00[0] = X0
 ocp.xf0[0][0] = Xf[0]; ocp.xf0[0][1] = Xf[1]; ocp.xf0[0][2] = Xf[2]
@@ -251,21 +253,22 @@ ocp.ubtf[0] = tf*2
 # # X0 = np.array([0, 0, 0]); u0=np.array([0, 0])
 # # Xf = np.array([10, 2, math.pi/2]); uf = np.array([0., 0.])
 # # ocp.lbu[0], ocp.ubu[0] = [-2*math.pi, -math.pi/2], [2*math.pi, math.pi/2]
-sigmas = [[2, 2], [1 ,1]]
-coords = [[2, 5, 0, 0], [2, 10, 3, 0]]
+sigmas = [[1, 1], [1 ,1]]
+coords = [[8, 5.5, -1, 0], [2, 10, 3, 0]]
 # r = 0
-robot_size = [1, .5]
+robot_size = [.5, .2]
 # sigmas = []
 # coords = []
 
 # also have to add offset to the obstacles +r +e ******************
 sigmas = [np.array(sigma) for sigma in sigmas]
 # ocp.path_constraints[0] = lambda x, u, t: [-wlps_ca(x, s+r, p, h, k, a) + 1 for s, [p, h, k, a] in zip(sigmas, coords)]
-# ocp.path_constraints[0] = lambda x, u, t: [-rrcollision(np.array([x[0], x[1], x[2], robot_size[0], robot_size[1], 20]), np.array([h, k, a, s[0], s[1], p]), i) + 1
-#                                            for s, [p, h, k, a] in zip(sigmas, coords) for i in range(8)]
+ocp.path_constraints[0] = lambda x, u, t: [-rrcollision(np.array([x[0], x[1], x[2], robot_size[0], robot_size[1], 8]), np.array([h, k, a, s[0], s[1], p]), i) + 1
+                                           for s, [p, h, k, a] in zip(sigmas, coords) for i in range(8)]
 # rect robot - circ obstacle
-ocp.path_constraints[0] = lambda x, u, t: [-wlps_ca_simple(h - x[0], k - x[1], robot_size + s, 20) + 1 
-                                           for s, [p, h, k, a] in zip(sigmas, coords)]
+# ocp.path_constraints[0] = lambda x, u, t: [-wlps_ca_simple(rotate_origin([h - x[0], k - x[1]], x[2], point=True)[0], 
+#                                                            rotate_origin([h - x[0], k - x[1]], x[2], point=True)[1], robot_size + s, 20) + 1 
+#                                            for s, [p, h, k, a] in zip(sigmas, coords)]
 
 # ocp.running_costs[0] = lambda x, u, t: 1
 # ocp.running_costs[0] = sqrt_cost
@@ -292,7 +295,7 @@ ocp.terminal_costs[0] = lambda xf, tf, x0, t0: quadratic_cost(x=Xf, x0=xf, Q=P) 
 # Create optimizer(mpo), solve and post process(post) the solution
 mpo, post = mp.solve(ocp, n_segments=50, poly_orders=1, scheme="LGR", plot=True, solve_dict={"ipopt.max_iter": 1000})
 # mpo, post = mp.solve(ocp, n_segments=10, poly_orders=10, scheme="CGL", plot=True)
-# mpo, post = mp.solve(ocp, n_segments=5, poly_orders=5, scheme="LGL", plot=True)
+# mpo, post = mp.solve(ocp, n_segments=15, poly_orders=5, scheme="LGL", plot=True)
 x, u, t, _ = post.get_data()
 
 # save results to .csv

@@ -36,11 +36,11 @@ def timing(f):
 
 
 class ADStar:
-    def __init__(self, s_start, s_goal, eps, heuristic_type, x=51, y=35):
+    def __init__(self, s_start, s_goal, eps, heuristic_type, x=51, y=35, robot_size=[1, 1], res=1):
         self.s_start, self.s_goal = s_start, s_goal
         self.heuristic_type = heuristic_type
 
-        self.Env = env.Env(x, y)  # class Env
+        self.Env = env.Env(x, y, robot_size=robot_size, res=res)  # class Env
         self.Plot = plotting.Plotting(s_start, s_goal, x, y)
 
         self.u_set = self.Env.motions  # feasible input set
@@ -79,7 +79,7 @@ class ADStar:
         path = self.extract_path()
         self.plot_path(path)
         mps_list = self.mps_from_path(path)
-        # traj_from_path(x0=self.s_start, path=mps_list, mps=self.Env.motions_pi_backwards, t=10, vmax=1, wmax=1, a=1, e=1, res=1)
+        traj = traj_from_path(x0=self.s_start, path=path, path_mps=mps_list, mps=self.Env.motions_pi_backwards, vmax=1, wmax=1, a=1, e=.5, res=1)
         self.visited = set()
 
         while True:
@@ -255,7 +255,7 @@ class ADStar:
             return abs(s_goal[0] - s_start[0]) + abs(s_goal[1] - s_start[1])
         else:
             # return 1
-            return math.hypot(s_goal[0] - s_start[0], s_goal[1] - s_start[1])# + w * (s_goal[2] - s_start[2])
+            return math.hypot(s_goal[0] - s_start[0], s_goal[1] - s_start[1]) + w * (s_goal[2] - s_start[2])
 
     def cost(self, s_start, s_goal, u, u_key):
         """
@@ -364,7 +364,7 @@ class ADStar:
         plt.plot(self.s_goal[0], self.s_goal[1], "gs")
         
         xy = [(x, y, t) for x, y, t in zip(px, py, pt)]
-        # print(xy)
+        print(xy)
 
     def mps_from_path(self, path):
         # get motion primitives according to points in path
@@ -375,15 +375,10 @@ class ADStar:
             # maybe only using the move and not key and index of motion primitive would be sufficient, might be worth to try it
             move = tuple(ps[i+1][j] - ps[i][j] for j in range(3))  # difference in configuration between two neighboring points
             u, u_key = self.get_motion_primitives(ps[i])
-            # mps = []
-            # for k in range(len(mps_all[u_key])):
-            #     mp = mps_all[u_key][k]
-            #     mp = (mp[0], mp[1], mp[2] % (2*math.pi))
-            #     mps.append(mp)
             mps = [mps_all[u_key][k][:3] for k in range(len(mps_all[u_key]))]  # get rid of the cost for motion primitives to allow for search in the next line
-            # !!!!!!! wrap the angle to (-pi, pi) coz otherwise it won't search properly when e.g. move[2] == 3/2pi !!!!!!!!
+            # wrap the change in angle to [-pi, pi]
             if move[2] >= math.pi:
-                move = (move[0], move[1], -(move[2] % math.pi))
+                move = (move[0], move[1], -(-move[2] % math.pi))
                 # move[2] % math.pi * math.copysign(move[2])
             elif move[2] <= -math.pi:
                 move = (move[0], move[1], move[2] % math.pi)
@@ -422,9 +417,9 @@ def main():
     # s_start = (4, 15, 0)
     # s_goal = (14, 25, 0)
     # s_start = (5, 5, 0)
-    # s_goal = (21, 5, math.pi)
+    s_goal = (25, 5, math.pi)
 
-    dstar = ADStar(s_start, s_goal, 2.5, "euclidean", 51, 31)
+    dstar = ADStar(s_start, s_goal, 2.5, "euclidean", 51, 31, robot_size=[5.99, 2.99], res=1)
     # dstar = ADStar(s_start, s_goal, 1, "euclidean")
     dstar.run()
 

@@ -236,16 +236,17 @@ def get_footprints(mps, width=2.99, height=0.99, res=1):
     footprints = {}
 
     for orientation, motions in mps.items():  # for each orientation
-        print(orientation, motions)
+        # print(orientation, motions)
         footprints[orientation] = []
         pixies = None
+        samples = 30
 
         for motion in motions:  # for each motion in orientation
             orient = orient_from_key(orientation)
             pixies = np.array([[]]).reshape(-1, 2)
             if motion[2] != 0:  # if there's rotation (turning)
                 dir = "cw" if math.copysign(1, motion[2]) == -1 else "ccw"  # if sign positive -> move ccw, else cw
-                trajectory = get_conf_turn(radius = abs(motion[0]), n_samples=5, start_angle=orient, stop_angle = orient+motion[2], direction=dir)
+                trajectory = get_conf_turn(radius = abs(motion[0]), n_samples=30, start_angle=orient, stop_angle = orient+motion[2], direction=dir)
             
             elif abs(motion[0]) and abs(motion[1]):  # diagonal line
                 inter_xs = [x for x in range(0, int(motion[0] + 1*math.copysign(1, motion[0])), int(math.copysign(1, motion[0])))]
@@ -270,12 +271,12 @@ def get_footprints(mps, width=2.99, height=0.99, res=1):
 
 def main():
     x, y, theta = 0, 0, 0
-    width, height = 2.99, .99  # [m]
+    width, height = 3, 1  # [m]
     res = .25  # [m]
 
     # trajectory = [[0, 0, 0], [-2, 0, 0]]#[4, 0, math.pi/16], [8, 2, math.pi/8], [10, 5, math.pi/4], [12, 8, math.pi*3/8], [12, 12, math.pi/2]]
-    trajectory = [[0, 0, math.pi/4], [2, 2, math.pi/4]]
-    trajectory = get_conf_turn(radius=5, n_samples=4, start_angle=math.pi*2, stop_angle=math.pi/2, direction='ccw')
+    # trajectory = [[0, 0, 0], [2, 2, math.pi/2]]   
+    trajectory = get_conf_turn(radius=5, n_samples=30, start_angle=0, stop_angle=math.pi/2, direction='ccw')
 
     rect = vert_from_params((x, y, theta, width/2, height/2))  # get corners from position and width, height
     pixies = np.array([[]]).reshape(-1, 2)
@@ -301,23 +302,27 @@ def main():
 
     ax.set_aspect('equal')
     plt.grid()
+    plt.title("Discretized robot footprint")
+    plt.xlabel("X")
+    plt.ylabel("Y")
     plt.show()
 
 if __name__ == '__main__':
-    # main()
-    from env import Env
-    env = Env(5, 5)
-    WIDTH = 2.99
-    HEIGHT = 0.99
-    res = .25
-    footprints = get_footprints(mps=env.motions_pi_backwards, width=WIDTH, height=HEIGHT, res=res)
-    for pixies in footprints.values():
-        # pixies = footprints["0pi"]
+    main()
+    # from env import Env
+    # env = Env(5, 5)
+    # WIDTH = 2.99
+    # HEIGHT = 0.99
+    # res = .25
+    # footprints = get_footprints(mps=env.motions_pi_backwards, width=WIDTH, height=HEIGHT, res=res)
+    # for pixies in footprints.values():
+    #     # pixies = footprints["0pi"]
         
-        for pixers in pixies:
-            plt.figure()
-            ax = plt.gca()
-            for pix in pixers:
-                ax.add_patch(Rectangle((pix[0]-.5*res, pix[1]-.5*res), 1*.9, 1*.9, 0))
-            ax.set_aspect('equal')
-            plt.show()
+    #     for pixers in pixies:
+    #         plt.figure()
+    #         ax = plt.gca()
+    #         for pix in pixers:
+    #             ax.add_patch(Rectangle((pix[0]-.5*res, pix[1]-.5*res), 1*.9, 1*.9, 0))
+    #         ax.set_aspect('equal')
+    #         plt.show()
+

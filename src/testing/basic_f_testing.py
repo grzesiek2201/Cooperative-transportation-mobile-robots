@@ -70,7 +70,7 @@ def vert_from_params(params):
 
 
 def coord_transf_test():
-    robot = np.array([4, 2, 1, 3, 1]) # parameters of the robot [x, y, theta, s1, s2]
+    robot = np.array([4, 2, math.pi*4/3, 3, 1]) # parameters of the robot [x, y, theta, s1, s2]
     xo, yo = 7.4, 4
     s1, s2 = 1, 2
     rectangle_params = np.array([xo, yo, 0, s1, s2])

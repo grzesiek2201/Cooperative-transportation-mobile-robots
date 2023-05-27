@@ -73,15 +73,15 @@ def traj_from_path(path, x0, path_mps, mps, vmax, wmax, a, e, res):
             elif (traj.get_last_vel() < vmax) and (not v_decel):    # accelerating
                 vk = math.sqrt(2*a*s + math.pow(traj.get_last_vel(), 2))    # new velocity
                 if vk > vmax: vk = vmax     # if new velocity greater than max velocity, cap it at max velocity
-                t += abs((vk - traj.get_last_vel()) / a)   # length of this time step # t = (vk - v0) / a  WRONG ****************************  # check now
+                t += abs((vk - traj.get_last_vel()) / a)   # length of this time step # t = (vk - v0)
 
             else:   # constant speed
                 vk = vmax
-                t += s / vk   # length of this time step # WRONG ****************************   # check now
+                t += s / vk   # length of this time step
 
             if pts[i][2] != traj.item[-1][0][2]:    # there's rotation
                 wk = vk / R
-                wk = math.copysign(wk, pts[i][2] - traj.item[-1][0][2])
+                wk = math.copysign(wk, ((pts[i][2] + math.pi) % (2*math.pi) - math.pi) - ((traj.item[-1][0][2] + math.pi) % (2*math.pi) - math.pi))
             else:
                 wk = 0
             
@@ -99,7 +99,7 @@ def traj_from_path(path, x0, path_mps, mps, vmax, wmax, a, e, res):
                 sqrt = math.pow(traj.get_last_rot(), 2) - 2*e*s     # how much distance driven in this time step (if sqrt'ed)
                 if sqrt > 0:
                     wk = math.sqrt(sqrt)    # new angular velocity
-                    wk = math.copysign(wk, pts[i][2] - traj.item[-1][0][2])
+                    wk = math.copysign(wk, ((pts[i][2] + math.pi) % (2*math.pi) - math.pi) - ((traj.item[-1][0][2] + math.pi) % (2*math.pi) - math.pi))
                 else:
                     wk = 0
                     w_decel = False     # finished decelerating
@@ -109,20 +109,20 @@ def traj_from_path(path, x0, path_mps, mps, vmax, wmax, a, e, res):
             elif (abs(traj.get_last_rot()) < wmax) and (not w_decel):    # accelerating
                 wk = math.sqrt(2*e*s + math.pow(traj.get_last_rot(), 2))    # new velocity
                 if wk > wmax: wk = wmax     # if new velocity greater than max velocity, cap it at max velocity
-                wk = math.copysign(wk, pts[i][2] - traj.item[-1][0][2])
+                wk = math.copysign(wk, ((pts[i][2] + math.pi) % (2*math.pi) - math.pi) - ((traj.item[-1][0][2] + math.pi) % (2*math.pi) - math.pi))
                 t += abs((wk - traj.get_last_rot()) / e)   # length of this time step # t = (vk - v0) / a  WRONG ****************************  # check now
                 
             else:   # constant speed
                 t += s / wmax   # length of this time step # WRONG ****************************   # check now
                 wk = wmax
-                wk = math.copysign(wk, pts[i][2] - traj.item[-1][0][2])
+                wk = math.copysign(wk, ((pts[i][2] + math.pi) % (2*math.pi) - math.pi) - ((traj.item[-1][0][2] + math.pi) % (2*math.pi) - math.pi))
 
             traj.input_item((pts[i], 0, wk, t))
             st += s
 
-    # trajectory = [pt for pt in traj.item]
-    # for pt in trajectory:
-    #     print(pt)
+    trajectory = [pt for pt in traj.item]
+    for pt in trajectory:
+        print(pt)
     traj_to_csv(traj.item)
     return traj.item
 
@@ -142,7 +142,7 @@ def inter_points(x0, path, path_mps, mps, vmax, wmax, a, e) -> tuple:
     # return intermediate points between node points : states
     # and points where the section begins or ends : seg_ind
     segments = segments_from_path(path=path, path_mps=path_mps, mps=mps)
-    num_ang_inte = 10
+    num_ang_inte = 30
     num_lin_inte = 50
     # travelled_distance = 0
     prev_state = x0
@@ -171,17 +171,15 @@ def inter_points(x0, path, path_mps, mps, vmax, wmax, a, e) -> tuple:
                 intr_states = [(x, y, theta) for theta in intr_ori]     # intermediate states (x, y, theta)
                 states += intr_states[:-1]
 
+                st += abs(((prev_state[2] + math.pi) % (2*math.pi) - math.pi) - ((segment[i][2] + math.pi) % (2*math.pi) - math.pi))
+
                 prev_state = segment[i]  # update previous state to current state
 
-            st += abs(segment[0][2] - segment[-1][2])
             seg_ind.append([[sx, sy, st-se], None, wmax])  # end of this segment deceleration
 
         else:
             for i in range(len(segment)):
-                ori_dif = segment[i][2] - prev_state[2]  # will probably not work straigh away due to 2pi wrap
-                # ori_dif = (ori_dif % -math.pi) if ori_dif >= math.pi else ori_dif % math.pi
-                # ori_dif = ori_dif % math.pi
-                # if ori_dif >
+                ori_dif = (segment[i][2] + math.pi) % (2*math.pi) - (prev_state[2] + math.pi) % (2*math.pi)
                 if ori_dif == 0:    #  straight movement, no rotation
                     intr_lin_x = np.linspace(prev_state[0], segment[i][0], num=num_lin_inte)
                     intr_lin_y = np.linspace(prev_state[1], segment[i][1], num=num_lin_inte)
@@ -197,26 +195,32 @@ def inter_points(x0, path, path_mps, mps, vmax, wmax, a, e) -> tuple:
                 else:   # turn (linear and angular speed)
                     new_state = segment[i]
                     # ori_dif = new_state[2] - prev_state[2]  # will probably not work straigh away due to 2pi wrap
+                    # ori_dif = ((new_state[2] + math.pi) % (2*math.pi) - math.pi) - ((prev_state[2] + math.pi) % (2*math.pi) - math.pi)
                     radius = new_state[0] - prev_state[0]
-                    ori_dif = ori_dif if ori_dif <= math.pi else ori_dif % (-math.pi)
+                    # ori_dif = ori_dif if ori_dif <= math.pi else ori_dif % (-math.pi)
                     dir = "cw" if math.copysign(1, ori_dif) == -1 else "ccw"  # if sign positive -> move ccw, else cw
                     intr_states = get_conf_turn(abs(radius), n_samples=num_lin_inte, start_angle=prev_state[2], stop_angle=new_state[2], direction=dir)
                     x0 = prev_state[0]; y0 = prev_state[1]
-                    intr_states = [(x+x0, y+y0, theta%(math.pi)) for x, y, theta in intr_states]
+                    thetas = []
+                    for x, y, theta in intr_states:
+                        thetas.append(theta % (-math.pi) if theta > math.pi else theta)
+                        # thetas.append(theta)
+                    intr_states = [(xy[0]+x0, xy[1]+y0, theta) for xy, theta in zip(intr_states, thetas)]   ############ theta%(math.pi)
                     states += intr_states[:-1]
 
-                    # find the point where the turn ends
-                    k = 0
-                    for j in range(i, len(segment)):
-                        if j == len(segment)-1:
-                            k = j
-                            break
-                        if segment[j][2] - segment[j+1][2] == 0:
-                            k = j
-                            break
+                    # # find the point where the turn ends
+                    # k = 0
+                    # for j in range(i, len(segment)):
+                    #     if j == len(segment)-1:
+                    #         k = j
+                    #         break
+                    #     if segment[j][2] - segment[j+1][2] == 0:
+                    #         k = j
+                    #         break
 
-                    st += abs(segment[k][2] - prev_state[2])
-                    seg_ind.append([[sx, sy, st-se], None, wmax])
+                    # st += abs(segment[k][2] - prev_state[2])
+                    st += abs(((segment[i][2] + math.pi) % (2*math.pi) - math.pi) -((prev_state[2] + math.pi) % (2*math.pi) - math.pi))
+                    # seg_ind.append([[sx, sy, st-se], None, wmax])
                     sx += abs(radius)
                     sy += abs(radius)
 
@@ -224,6 +228,7 @@ def inter_points(x0, path, path_mps, mps, vmax, wmax, a, e) -> tuple:
 
             seg_ind.append([[sx-sa, sy-sa, st], vmax, None])
 
+    states.append(tuple(segments[len(segments)-1][1][-1]))
     seg_ind.append([[sx-sa, sy-sa, st-se], vmax, wmax])
     print(states)
     print(seg_ind)

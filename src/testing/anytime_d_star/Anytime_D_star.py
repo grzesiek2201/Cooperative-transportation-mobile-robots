@@ -79,7 +79,7 @@ class ADStar:
         path = self.extract_path()
         self.plot_path(path)
         mps_list = self.mps_from_path(path)
-        traj = traj_from_path(x0=self.s_start, path=path, path_mps=mps_list, mps=self.Env.motions_pi_backwards, vmax=1, wmax=1, a=1, e=.5, res=1)
+        traj = traj_from_path(x0=self.s_start, path=path, path_mps=mps_list, mps=self.Env.motions_pi_backwards, vmax=1, wmax=1, a=1, e=1, res=1)
         self.visited = set()
 
         while True:
@@ -417,7 +417,7 @@ def main():
     # s_start = (4, 15, 0)
     # s_goal = (14, 25, 0)
     # s_start = (5, 5, 0)
-    # s_goal = (25, 5, math.pi)
+    s_goal = (25, 5, math.pi)
 
     dstar = ADStar(s_start, s_goal, 2.5, "euclidean", 51, 31, robot_size=[5.99, 2.99], res=1)
     # dstar = ADStar(s_start, s_goal, 1, "euclidean")

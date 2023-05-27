@@ -5,6 +5,7 @@ from matplotlib.patches import Rectangle
 from rotrectangle import RotatingRectangle
 from pathlib import Path
 import logging
+import math
 
 
 class VitrualLeader:
@@ -42,12 +43,11 @@ class VitrualLeader:
 
 
 class Follower:
-    def __init__(self, d=0, alpha=0):
-        self.state_ref = np.array([0, 0, 0])
-        self.state_ref_prev = np.array([0, 0, 0])
-        self.state = np.array([0, 0, 0])
+    def __init__(self, d: float=0, alpha: float=0, x0: np.ndarray=np.array([0, 0, 0])):
         self.d = d
         self.alpha = alpha
+        self.state_ref = x0 + [self.d * math.cos(x0[2]), self.d * math.sin(x0[2]), 0]
+        self.state_ref_prev = x0 + [self.d * math.cos(x0[2]), self.d * math.sin(x0[2]), 0]
         self.control = None
 
     def update_vel(self, ts):
@@ -134,9 +134,9 @@ def track_leader():
 
 def main():
     X, Y, Theta, U, T = read_data()
-    follower1 = Follower(d=1, alpha=0)
-    follower2 = Follower(d=-1, alpha=0)
-    x_prev = [0, 0, 0]
+    follower1 = Follower(d=1, alpha=0, x0=np.array([float(X[0]), float(Y[0]), float(Theta[0])]))
+    follower2 = Follower(d=-1, alpha=0, x0=np.array([float(X[0]), float(Y[0]), float(Theta[0])]))
+    x_prev = [X[0], Y[0], Theta[0]]
     follower1_history_x = []
     follower1_history_y = []
     follower1_history_v = []
@@ -191,12 +191,14 @@ def main():
             t0 = t
 
     fig = plt.figure(figsize=(7, 7))
-    subplots = fig.subplots(5, 1)
-    subplots[0].plot(follower1_history_x, follower1_history_y, color='blue')
-    subplots[0].plot(follower2_history_x, follower2_history_y, color='green')
-    subplots[0].plot(X, Y, color='red')
-    subplots[0].grid()
-    ax = subplots[0]
+    subplots = fig.subplots(3, 2)
+    subplots[0][0].plot(follower1_history_x, follower1_history_y, color='blue')
+    subplots[0][0].plot(follower2_history_x, follower2_history_y, color='green')
+    subplots[0][0].plot(X, Y, color='red')
+    subplots[0][0].grid()
+    subplots[0][0].set_xlabel("x")
+    subplots[0][0].set_ylabel("y")
+    ax = subplots[0][0]
     ax.set_aspect('equal')
 
     # plot robot's footprint
@@ -211,28 +213,57 @@ def main():
                         fill=None)
         ax.add_patch(rec)
 
-    subplots[1].plot(follower1_history_x, color='blue')
-    subplots[1].plot(follower2_history_x, color='green')
-    subplots[1].plot(X, color='red')
-    subplots[1].set_title("x")
-    subplots[1].grid()
+    subplots[1][0].plot(follower1_history_x, color='blue')
+    subplots[1][0].plot(follower2_history_x, color='green')
+    subplots[1][0].plot(X, color='red')
+    subplots[1][0].set_title("x")
+    subplots[1][0].grid()
 
-    subplots[2].plot(follower1_history_y, color='blue')
-    subplots[2].plot(follower2_history_y, color='green')
-    subplots[2].plot(Y, color='red')
-    subplots[2].set_title("y")
-    subplots[2].grid()
+    subplots[1][1].plot(follower1_history_y, color='blue')
+    subplots[1][1].plot(follower2_history_y, color='green')
+    subplots[1][1].plot(Y, color='red')
+    subplots[1][1].set_title("y")
+    subplots[1][1].grid()
 
-    subplots[3].plot(leader_v, color='red')
-    subplots[3].plot(follower1_history_v, color='blue')
-    subplots[3].plot(follower2_history_v, color='green')
-    subplots[3].set_title("v [m/s]")
+    subplots[2][0].plot(leader_v, color='red')
+    subplots[2][0].plot(follower1_history_v, color='blue')
+    subplots[2][0].plot(follower2_history_v, color='green')
+    subplots[2][0].set_title("v [m/s]")
 
-    subplots[4].plot(leader_w, color='red')
-    subplots[4].plot(follower1_history_w, color='blue')
-    subplots[4].plot(follower2_history_w, color='green')
-    subplots[4].set_title("w [rad/s]")
+    subplots[2][1].plot(leader_w, color='red')
+    subplots[2][1].plot(follower1_history_w, color='blue')
+    subplots[2][1].plot(follower2_history_w, color='green')
+    subplots[2][1].set_title("w [rad/s]")
 
+    # set the spacing between subplots
+    plt.subplots_adjust(left=0.1,
+                        bottom=0.1,
+                        right=0.9,
+                        top=0.9,
+                        wspace=0.4,
+                        hspace=0.4)
+
+    plt.show()
+
+    fig = plt.figure()
+    subplots = fig.subplots(2, 1)
+    fig.suptitle("u(t)")
+    subplots[0].plot(T, U[:,0], linewidth=2)
+    subplots[0].grid()
+    subplots[0].set_ylabel("$v$ [m/s]")
+    subplots[0].set_xlabel("t [s]")
+    subplots[1].plot(T, U[:,1], linewidth=2)
+    subplots[1].set_ylabel("$\omega$ [rad/s]")
+    subplots[1].set_xlabel("t [s]")
+    
+    # set the spacing between subplots
+    plt.subplots_adjust(left=0.15,
+                        bottom=0.1,
+                        right=0.9,
+                        top=.85,
+                        wspace=0.4,
+                        hspace=0.4)
+    plt.grid()
     plt.show()
 
 

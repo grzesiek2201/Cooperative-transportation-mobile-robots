@@ -58,7 +58,6 @@ def traj_from_path(path, x0, path_mps, mps, vmax, wmax, a, e, res):
             if inds: decel_pt = inds.pop(0)
 
         if pts[i][0] != traj.item[-1][0][0] or pts[i][1] != traj.item[-1][0][1]:  # linear or linear and angular movement
-            # sa = traj.last_rot(pts[i])
             s = traj.last_len(pts[i])   # length of straight line movement
 
             if v_decel:     # linear deceleration
@@ -121,9 +120,9 @@ def traj_from_path(path, x0, path_mps, mps, vmax, wmax, a, e, res):
             traj.input_item((pts[i], 0, wk, t))
             st += s
 
-    trajectory = [pt for pt in traj.item]
-    for pt in trajectory:
-        print(pt)
+    # trajectory = [pt for pt in traj.item]
+    # for pt in trajectory:
+    #     print(pt)
     traj_to_csv(traj.item)
     return traj.item
 

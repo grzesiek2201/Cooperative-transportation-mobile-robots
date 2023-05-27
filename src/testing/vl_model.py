@@ -103,7 +103,7 @@ def track_leader():
     leader_pose_y = []
     leader_pose_theta = []
     t0 = T[0]
-    for i in range(len(X)-1):
+    for i in range(len(X)):
         u = U[i]
         t = T[i+1]
         ts = t - t0

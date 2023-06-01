@@ -68,7 +68,7 @@ class Follower:
         else:
             theta_new = x_vl_prev[2]
         self.state_ref_prev = self.state_ref
-        self.state_ref = np.array([x_new, y_new, theta_new])
+        self.state_ref = np.array([float(x_new), float(y_new), float(theta_new)])
 
 
 def rectangle(x, y, alpha, height, width):

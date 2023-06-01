@@ -111,7 +111,7 @@ class Env:
         # for i in range(16):
         #     obs.add((41, i))
 
-        for i in range(17, 23):
+        for i in range(17, 22):
             obs.add((i, 19))
 
         return obs

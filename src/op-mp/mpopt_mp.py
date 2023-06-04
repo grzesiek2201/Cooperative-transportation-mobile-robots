@@ -76,14 +76,17 @@ def solve(path, dynamics, P, Q, R, robot_size=[1.0, 1.0], plot=False):
         ocp.xf0[0] = Xf
         ocp.u00[0] = U[-1]
         ocp.uf0[0] = uf
-        ocp.lbu[0], ocp.ubu[0] = [0, -math.pi/32], [.5, math.pi/32]
+        ocp.lbu[0], ocp.ubu[0] = [0, -math.pi/4], [.5, math.pi/4]
         # Xf = path[i+1]
         ocp.running_costs[0] = lambda x, u, t: quadratic_cost(x, u, t, x0=Xf, u0=uf, Q=Q, R=R) + 1
         # ocp.running_costs[0] = lambda x, u, t: 1/2*(ca.power(u[0] - uf[0], 2) + ca.power(u[1] - uf[1], 2))
         ocp.terminal_constraints[0] = lambda xf, tf, x0, t0: [xf[0]-Xf[0], xf[1]-Xf[1], xf[2]-Xf[2]]
         ocp.terminal_costs[0] = lambda xf, tf, x0, t0: quadratic_cost(x=Xf, x0=xf, Q=P)  # was (x=x0, x0=xf, Q=P)  # doesn't seem to work (works but not always)
 
-        mpo, post = mp.solve(ocp, n_segments=50, poly_orders=1, scheme="LGR", plot=False, solve_dict={"ipopt.max_iter": 1000})
+        s = int(np.sum(np.sqrt(np.sum(np.power(X0[:2], 2) + np.power(Xf[:2], 2)))))
+        n = s * 5
+
+        mpo, post = mp.solve(ocp, n_segments=n, poly_orders=1, scheme="LGR", plot=False, solve_dict={"ipopt.max_iter": 1000})
         x, u, t, _ = post.get_data()
         X = np.vstack((X, x[1:-1]))
         U = np.vstack((U, u[1:-1]))

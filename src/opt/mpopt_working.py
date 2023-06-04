@@ -301,7 +301,7 @@ def main():
 
     r = .7
     X0 = np.array([5, 5, math.pi/2]); u0 = np.array([0., 0.])
-    Xf = np.array([6, 30, math.pi]); uf = np.array([0., 0.])
+    Xf = np.array([15, 20, math.pi/2]); uf = np.array([0., 0.])
     tf = 25
     circle = (5, 0, 3)
     robot_size = [2, 1]

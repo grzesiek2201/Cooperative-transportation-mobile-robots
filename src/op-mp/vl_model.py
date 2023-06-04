@@ -57,7 +57,7 @@ class Follower:
         vy = (self.state_ref[1] - self.state_ref_prev[1]) / ts
         v = np.sqrt(vx * vx + vy * vy)
         w =  (self.state_ref[2] - self.state_ref_prev[2]) / ts # dont know where to get it from
-        if w > math.pi:
+        if abs(w) > math.pi:
             w = (self.state_ref[2]%(2*math.pi) - self.state_ref_prev[2]%(2*math.pi)) / ts
         self.control = np.array([float(v), float(w)])
 
@@ -145,10 +145,25 @@ def track_leader():
     plt.show()
 
 
+def save_history(filename, x, y, t, v, w):
+    try:
+        path = list(Path(__file__).parent.parent.glob(f"op-mp/{filename}"))[0]
+    except IndexError:
+        print(f"File {filename} does not exist")
+        exit()
+    df = pd.DataFrame(np.hstack((np.array(x).reshape(-1, 1), 
+                                 np.array(y).reshape(-1, 1),
+                                 np.array(t).reshape(-1, 1),
+                                 np.array(v).reshape(-1, 1),
+                                 np.array(w).reshape(-1, 1))))
+    df.columns = ["x", "y", "t", "v", "w"]
+    df.to_csv(path, index=False)
+
+
 def main():
     X, Y, Theta, U, T = read_data()
-    follower1 = Follower(d=1, alpha=0, x0=np.array([float(X[0]), float(Y[0]), float(Theta[0])]))
-    follower2 = Follower(d=-1, alpha=0, x0=np.array([float(X[0]), float(Y[0]), float(Theta[0])]))
+    follower1 = Follower(d=0.35, alpha=math.pi/2, x0=np.array([float(X[0]), float(Y[0]), float(Theta[0])]))
+    follower2 = Follower(d=-0.35, alpha=math.pi/2, x0=np.array([float(X[0]), float(Y[0]), float(Theta[0])]))
     x_prev = [X[0], Y[0], Theta[0]]
     follower1_history_x = []
     follower1_history_y = []
@@ -209,14 +224,17 @@ def main():
 
             t0 = t
 
+    save_history("follower1.csv", follower1_history_x, follower1_history_y, follower1_history_t, follower1_history_v, follower1_history_w)
+    save_history("follower2.csv", follower2_history_x, follower2_history_y, follower2_history_t, follower2_history_v, follower2_history_w)
+
     # PLOTTING 
-    # a bit of cheating
-    for i in range(1, len(follower1_history_v)):
-        if abs(follower1_history_v[i] - follower1_history_v[i-1]) > 0.4:
-            follower1_history_v[i] = follower1_history_v[i-1] 
-    for i in range(1, len(follower2_history_v)):
-        if abs(follower2_history_v[i] - follower2_history_v[i-1]) > 0.4:
-            follower2_history_v[i] = follower2_history_v[i-1] 
+    # # a bit of cheating
+    # for i in range(1, len(follower1_history_v)):
+    #     if abs(follower1_history_v[i] - follower1_history_v[i-1]) > 0.4:
+    #         follower1_history_v[i] = follower1_history_v[i-1] 
+    # for i in range(1, len(follower2_history_v)):
+    #     if abs(follower2_history_v[i] - follower2_history_v[i-1]) > 0.4:
+    #         follower2_history_v[i] = follower2_history_v[i-1] 
 
     # path plot
     pathfig = plt.figure(figsize=(7, 7))

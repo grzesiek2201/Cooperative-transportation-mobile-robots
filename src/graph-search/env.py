@@ -20,7 +20,7 @@ class Env:
         self.cost_b = 5.0
         self.cost_diag = 2  # 1
         self.cost_arc = 5  # 3
-        self.cost_rot = 5  # 3
+        self.cost_rot = 50  # 3
         # *********** 45 DEGREE TURN HAS WRONG FOOTPRING ***************
         # *********** IT IS BETTER APPROXIMATED WITH DIAGONAL THAN WITH ARC ************
         self.motions_pi_backwards = {
@@ -86,20 +86,24 @@ class Env:
         for i in range(y):
             obs.add((x - 1, i))
 
-        for i in range(10, 21):
-            obs.add((i, 15))
+        # for i in range(10, 21):
+        #     obs.add((i, 15))
 
-        for i in range(15):
-            obs.add((20, i))
+        # for i in range(15):
+        #     obs.add((20, i))
 
-        for i in range(15, 30):
-            obs.add((30, i))
+        # for i in range(15, 30):
+        #     obs.add((30, i))
 
-        for i in range(16):
-            obs.add((40, i))
+        # for i in range(16):
+        #     obs.add((40, i))
 
-        for i in range(17, 22):
-            obs.add((i, 19))
+        # for i in range(17, 22):
+        #     obs.add((i, 19))
+
+        for i in range(25, 35):
+            for j in range(3, 10):
+                obs.add((i, j))
 
         return obs
 

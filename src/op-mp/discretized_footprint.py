@@ -3,6 +3,7 @@ import math
 import numpy as np
 from matplotlib.patches import Rectangle
 from bresenham import bresenham
+from mpopt_mp_single import single_mp
 
 
 class Line:
@@ -167,11 +168,11 @@ def pix_from_cont_bresenham(rect, res=1):
 
 def get_conf_turn(radius, n_samples, start_angle, stop_angle, direction):
     if direction == "cw":
+
         start_angle = ((start_angle + math.pi) % (2*math.pi) - math.pi)
         stop_angle = ((stop_angle +math.pi) % (2*math.pi) - math.pi)
         start_angle %= (2*math.pi)
         stop_angle %= (2*math.pi)
-
         start_angle += math.pi/2
         stop_angle += math.pi/2
 
@@ -190,11 +191,10 @@ def get_conf_turn(radius, n_samples, start_angle, stop_angle, direction):
     elif direction == "ccw":
         start_angle = ((start_angle + math.pi) % (2*math.pi) - math.pi)
         stop_angle = ((stop_angle +math.pi) % (2*math.pi) - math.pi)
-        start_angle -= math.pi/2
-        stop_angle -= math.pi/2
         start_angle %= (2*math.pi)
         stop_angle %= (2*math.pi)
-
+        start_angle -= math.pi/2
+        stop_angle -= math.pi/2
         x_transf = radius *  math.cos(start_angle)
         y_transf = radius * math.sin(start_angle)
 
@@ -205,7 +205,6 @@ def get_conf_turn(radius, n_samples, start_angle, stop_angle, direction):
             x = radius * math.cos(angle) - x_transf
             y = radius * math.sin(angle) - y_transf
             theta = math.pi/2 + angle
-            # theta = -(math.pi/2 - angle)
             conf.append((x, y, theta))  
     
     return conf
@@ -230,10 +229,54 @@ def orient_from_key(key):
         return math.pi*7/4
 
 
+# def get_footprints(mps, width=2.99, height=0.99, res=1):
+#     x, y, theta = 0, 0, 0
+#     width, height = width, height  # [m]
+#     res = 1/res  # [m]
+
+#     rect = vert_from_params((x, y, theta, width/2, height/2))  # get corners from position and width, height
+
+#     mps = mps
+
+#     footprints = {}
+
+#     for orientation, motions in mps.items():  # for each orientation
+#         footprints[orientation] = []
+#         pixies = None
+#         samples = 30
+
+#         for motion in motions:  # for each motion in orientation
+#             orient = orient_from_key(orientation)
+#             pixies = np.array([[]]).reshape(-1, 2)
+#             if motion[2] != 0:  # if there's rotation (turning)
+#                 dir = "cw" if math.copysign(1, motion[2]) == -1 else "ccw"  # if sign positive -> move ccw, else cw
+#                 trajectory = get_conf_turn(radius = abs(motion[0]), n_samples=samples, start_angle=orient, stop_angle = orient+motion[2], direction=dir)
+            
+#             elif abs(motion[0]) and abs(motion[1]):  # diagonal line
+#                 inter_xs = [x for x in range(0, int(motion[0] + 1*math.copysign(1, motion[0])), int(math.copysign(1, motion[0])))]
+#                 inter_ys = [y for y in range(0, int(motion[1] + 1*math.copysign(1, motion[1])), int(math.copysign(1, motion[1])))]
+#                 trajectory = [[x, y, orient] for x, y in zip(inter_xs, inter_ys)]
+            
+#             elif abs(motion[0]):  # horizontal line
+#                 trajectory = [[x, 0, orient] for x in range(0, int(motion[0] + 1*math.copysign(1, motion[0])), int(math.copysign(1, motion[0])))]
+            
+#             elif abs(motion[1]):  # vertical line
+#                 trajectory = [[0, y, orient] for y in range(0, int(motion[1] + 1*math.copysign(1, motion[1])), int(math.copysign(1, motion[1])))]
+            
+#             for x, y, theta in trajectory:  
+#                 temp_rect = translate_corners(rect, (x, y))
+#                 temp_rect = rotate_around_point(temp_rect, theta, (x, y))
+#                 pixies = np.vstack((pixies, pix_from_cont_bresenham(temp_rect, res)))
+#             footprints[orientation].append(set(map(tuple, pixies)))
+
+#     return footprints
+
+
 def get_footprints(mps, width=2.99, height=0.99, res=1):
+    # from optimized path used in op-mp!
     x, y, theta = 0, 0, 0
     width, height = width, height  # [m]
-    res = res  # [m]
+    res = 1/res  # [m]
 
     rect = vert_from_params((x, y, theta, width/2, height/2))  # get corners from position and width, height
 
@@ -242,7 +285,6 @@ def get_footprints(mps, width=2.99, height=0.99, res=1):
     footprints = {}
 
     for orientation, motions in mps.items():  # for each orientation
-        # print(orientation, motions)
         footprints[orientation] = []
         pixies = None
         samples = 30
@@ -252,8 +294,9 @@ def get_footprints(mps, width=2.99, height=0.99, res=1):
             pixies = np.array([[]]).reshape(-1, 2)
             if motion[2] != 0:  # if there's rotation (turning)
                 dir = "cw" if math.copysign(1, motion[2]) == -1 else "ccw"  # if sign positive -> move ccw, else cw
-                trajectory = get_conf_turn(radius = abs(motion[0]), n_samples=30, start_angle=orient, stop_angle = orient+motion[2], direction=dir)
-            
+                # trajectory = get_conf_turn(radius = abs(motion[0]), n_samples=samples, start_angle=orient, stop_angle = orient+motion[2], direction=dir)
+                trajectory = single_mp(x0=[0, 0, orient], xf=[motion[0], motion[1], orient+motion[2]])[0]
+
             elif abs(motion[0]) and abs(motion[1]):  # diagonal line
                 inter_xs = [x for x in range(0, int(motion[0] + 1*math.copysign(1, motion[0])), int(math.copysign(1, motion[0])))]
                 inter_ys = [y for y in range(0, int(motion[1] + 1*math.copysign(1, motion[1])), int(math.copysign(1, motion[1])))]
@@ -270,19 +313,18 @@ def get_footprints(mps, width=2.99, height=0.99, res=1):
                 temp_rect = rotate_around_point(temp_rect, theta, (x, y))
                 pixies = np.vstack((pixies, pix_from_cont_bresenham(temp_rect, res)))
             footprints[orientation].append(set(map(tuple, pixies)))
-            # footprints[orientation].append(np.array(list(set(map(tuple, pixies)))))
-    
+
     return footprints
 
 
 def main():
     x, y, theta = 0, 0, 0
-    width, height = 3, 1  # [m]
-    res = .25  # [m]
+    width, height = 1.99, 0.99  # [m]
+    res = .5  # [m]
 
     # trajectory = [[0, 0, 0], [-2, 0, 0]]#[4, 0, math.pi/16], [8, 2, math.pi/8], [10, 5, math.pi/4], [12, 8, math.pi*3/8], [12, 12, math.pi/2]]
     # trajectory = [[0, 0, 0], [2, 2, math.pi/2]]   
-    trajectory = get_conf_turn(radius=5, n_samples=30, start_angle=-math.pi/2, stop_angle=0, direction='ccw')
+    trajectory = get_conf_turn(radius=1, n_samples=30, start_angle=0, stop_angle=math.pi/2, direction='ccw')
     for traj in trajectory:
         print(traj)
 
@@ -316,7 +358,8 @@ def main():
     plt.show()
 
 if __name__ == '__main__':
-    main()
+    # main()
+
     # from env import Env
     # env = Env(5, 5)
     # WIDTH = 2.99
@@ -334,3 +377,19 @@ if __name__ == '__main__':
     #         ax.set_aspect('equal')
     #         plt.show()
 
+
+    res = 1
+    cost_f = 1.0*res
+    cost_b = 5.0*res
+    cost_diag = 2*res  # 1
+    cost_arc = 5*res  # 3
+    cost_rot = 50*res  # 3
+    turn_r = 1
+    mps = {
+            "0pi": [(1.0*res, .0, .0, cost_f),    (-1.0*res, .0, .0, cost_b),    (1.0*res, -1.0*res, -math.pi/2, cost_arc, turn_r),     (1.0*res, 1.0*res, math.pi/2, cost_arc, turn_r),       
+                            (.0, .0, math.pi/4, cost_rot), (.0, .0, -math.pi/4, cost_rot),
+                            (2.0*res, .0, .0, 2*cost_f),       (-2.0*res, .0, .0, 2*cost_b),
+                            (4.0*res, .0, .0, 4*cost_f),       (-4.0*res, .0, .0, 4*cost_b),
+                            (2.0*res, -1.0*res, -math.pi/4, cost_arc/2),   (2.0*res, 1.0*res, math.pi/4, cost_arc/2)]
+            }
+    get_footprints(mps=mps)

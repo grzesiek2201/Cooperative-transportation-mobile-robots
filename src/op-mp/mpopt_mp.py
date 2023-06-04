@@ -52,50 +52,15 @@ def save_to_csv(x, u, t):
     results.to_csv(path, index=False)
 
 
-def solve(path, dynamics, P, Q, R):
-
-    ocp = mp.OCP(n_states=3, n_controls=2, n_phases=1)#, solver="scpgen")
-
-    u0 = np.array([1., 0.])
-    uf = np.array([1., 0.])
-
-    X = np.array(path[0])
-    U = np.array([.0, .0])
-    T = np.array([0])
-
-    for i in range(len(path)-1):
-        ocp.dynamics[0] = dynamics
-        X0 = np.array(path[i])
-        Xf = np.array(path[i+1])
-        ocp.x00[0] = X0
-        ocp.xf0[0] = Xf
-        ocp.u00[0] = u0
-        ocp.uf0[0] = uf
-        ocp.lbu[0], ocp.ubu[0] = [0, -math.pi/2], [.5, math.pi/16]
-        Xf = path[i+1]
-        uf = np.array([1., 0.])
-        ocp.running_costs[0] = lambda x, u, t: quadratic_cost(x, u, t, x0=Xf, u0=uf, Q=Q, R=R) + 1
-        # ocp.running_costs[i] = lambda x, u, t: (ca.power(u[0] - uf2[0], 2) + ca.power(u[1] - uf2[1], 2))
-        ocp.terminal_constraints[0] = lambda xf, tf, x0, t0: [xf[0]-Xf[0], xf[1]-Xf[1], xf[2]-Xf[2]]
-        ocp.terminal_costs[0] = lambda xf, tf, x0, t0: quadratic_cost(x=Xf, x0=xf, Q=P)  # was (x=x0, x0=xf, Q=P)  # doesn't seem to work (works but not always)
-
-        mpo, post = mp.solve(ocp, n_segments=20, poly_orders=1, scheme="LGR", plot=False, solve_dict={"ipopt.max_iter": 1000})
-        x, u, t, _ = post.get_data()
-        X = np.vstack((X, x[1:]))
-        U = np.vstack((U, u[1:]))
-        T = np.vstack((T, t[1:]+T[-1]))
-
-    return X, U, T
-
-
-def solve_and_plot(path, dynamics, P, Q, R, robot_size):
+def solve(path, dynamics, P, Q, R, robot_size=[1.0, 1.0], plot=False):
 
     ocp = mp.OCP(n_states=3, n_controls=2, n_phases=1)#, solver="scpgen")
 
     robot_size = robot_size
 
-    plt.figure()
-    ax = plt.gca()
+    if plot:
+        plt.figure()
+        ax = plt.gca()
 
     u0 = np.array([1., 0.])
     uf = np.array([1., 0.])
@@ -109,73 +74,55 @@ def solve_and_plot(path, dynamics, P, Q, R, robot_size):
         Xf = np.array(path[i+1])
         ocp.x00[0] = X0
         ocp.xf0[0] = Xf
-        ocp.u00[0] = u0
+        ocp.u00[0] = U[-1]
         ocp.uf0[0] = uf
-        ocp.lbu[0], ocp.ubu[0] = [0, -math.pi/2], [.5, math.pi/16]
-        Xf = path[i+1]
-        uf = np.array([1., 0.])
+        ocp.lbu[0], ocp.ubu[0] = [0, -math.pi/32], [.5, math.pi/32]
+        # Xf = path[i+1]
         ocp.running_costs[0] = lambda x, u, t: quadratic_cost(x, u, t, x0=Xf, u0=uf, Q=Q, R=R) + 1
-        # ocp.running_costs[i] = lambda x, u, t: (ca.power(u[0] - uf2[0], 2) + ca.power(u[1] - uf2[1], 2))
+        # ocp.running_costs[0] = lambda x, u, t: 1/2*(ca.power(u[0] - uf[0], 2) + ca.power(u[1] - uf[1], 2))
         ocp.terminal_constraints[0] = lambda xf, tf, x0, t0: [xf[0]-Xf[0], xf[1]-Xf[1], xf[2]-Xf[2]]
         ocp.terminal_costs[0] = lambda xf, tf, x0, t0: quadratic_cost(x=Xf, x0=xf, Q=P)  # was (x=x0, x0=xf, Q=P)  # doesn't seem to work (works but not always)
 
-        mpo, post = mp.solve(ocp, n_segments=20, poly_orders=1, scheme="LGR", plot=False, solve_dict={"ipopt.max_iter": 1000})
+        mpo, post = mp.solve(ocp, n_segments=50, poly_orders=1, scheme="LGR", plot=False, solve_dict={"ipopt.max_iter": 1000})
         x, u, t, _ = post.get_data()
-        X = np.vstack((X, x[1:]))
-        U = np.vstack((U, u[1:]))
-        T = np.vstack((T, t[1:]+T[-1]))
+        X = np.vstack((X, x[1:-1]))
+        U = np.vstack((U, u[1:-1]))
+        T = np.vstack((T, t[1:-1]+T[-1]))
 
-        plt.plot(x[:,0], x[:,1], linewidth=1, c='r')
-        plt.plot(X0[0], X0[1], 'ro', Xf[0], Xf[1], 'ro')
+        if plot:
+            plt.plot(x[:,0], x[:,1], linewidth=1, c='r')
+            plt.plot(X0[0], X0[1], 'ro', Xf[0], Xf[1], 'ro')
 
-        # plot robot's footprint
-        n_arr = int(len(x[:,0]) / 10)
-        postures = [(x[:,0][i], x[:,1][i], x[:,2][i]) for i in range(0, len(x[:,0]), n_arr)]
-        width, height = robot_size[0]*2, robot_size[1]*2
-        point_of_rotation = np.array([width/2, height/2])
-        for posture in postures:
-            rec = RotatingRectangle((posture[0], posture[1]), width=width, height=height, 
-                            rel_point_of_rot=point_of_rotation,
-                            angle=posture[2]*180.0/np.pi, color='black', alpha=0.9,
-                            fill=None)
-            ax.add_patch(rec)
+            # plot robot's footprint
+            n_arr = int(len(x[:,0]) / 10)
+            postures = [(x[:,0][i], x[:,1][i], x[:,2][i]) for i in range(0, len(x[:,0]), n_arr)]
+            width, height = robot_size[0]*2, robot_size[1]*2
+            point_of_rotation = np.array([width/2, height/2])
+            for posture in postures:
+                rec = RotatingRectangle((posture[0], posture[1]), width=width, height=height, 
+                                rel_point_of_rot=point_of_rotation,
+                                angle=posture[2]*180.0/np.pi, color='black', alpha=0.9,
+                                fill=None)
+                ax.add_patch(rec)
 
-    plt.show()
+    if plot:
+        plt.show()
 
     return X, U, T
 
 
-# path = [(5, 5, 0), (6.0, 6.0, 1.5707963267948966), (6.0, 10.0, 1.5707963267948966), (6.0, 14.0, 1.5707963267948966), (6.0, 18.0, 1.5707963267948966), 
-#         (6.0, 20.0, 1.5707963267948966), (7.0, 21.0, 0.0), (11.0, 21.0, 0.0), (15.0, 21.0, 0.0), (19.0, 21.0, 0.0), (23.0, 21.0, 0.0), 
-#         (24.0, 20.0, -1.5707963267948966), (24.0, 16.0, -1.5707963267948966), (24.0, 14.0, -1.5707963267948966), (25.0, 13.0, 0.0), (29.0, 13.0, 0.0), 
-#         (33.0, 13.0, 0.0), (33.0, 13.0, 0.7853981633974483), (34.0, 14.0, 0.7853981633974483), (35.0, 15.0, 0.7853981633974483), (36.0, 16.0, 0.7853981633974483), 
-#         (37.0, 17.0, 0.7853981633974483), (38.0, 18.0, 0.7853981633974483), (39.0, 19.0, 0.7853981633974483), (40.0, 20.0, 0.7853981633974483),
-#         (41.0, 21.0, 0.7853981633974483), (42.0, 22.0, 0.7853981633974483), (42.0, 22.0, 1.5707963267948966), (42.0, 24.0, 1.5707963267948966), 
-#         (42.0, 25.0, 1.5707963267948966), (42.0, 25.0, 2.356194490192345)]
+def optimize(path, robot_size, plot=False):
+    for i in range(len(path)):
+        if path[i][2] >= math.pi:
+            # path[i][2] -= 2*math.pi
+            # path[i] = (path[i][0], path[i][1], path[i][2] - 2*math.pi)
+            path[i] = (path[i][0], path[i][1], path[i][2] % (2*math.pi))
+    Q = np.diag([10, 10, 10])          # don't turn too sharply
+    R = np.diag([10, 100])               # keep inputs small
+    P = np.diag([1000, 1000, 1000])
 
-# path = [(5, 5, 0), (7.0, 7.0, 1.5707963267948966), (7.0, 11.0, 1.5707963267948966), (7.0, 15.0, 1.5707963267948966), (7.0, 19.0, 1.5707963267948966), 
-#         (9.0, 21.0, 0.0), (13.0, 21.0, 0.0), (17.0, 21.0, 0.0), (21.0, 21.0, 0.0), (23.0, 21.0, 0.0), (25.0, 19.0, -1.5707963267948966), 
-#         (25.0, 15.0, -1.5707963267948966), (25.0, 15.0, -0.7853981633974483), (26.0, 14.0, -0.7853981633974483), (27.0, 13.0, -0.7853981633974483), (27.0, 13.0, 0.0), 
-#         (31.0, 13.0, 0.0), (33.0, 15.0, 1.5707963267948966), (33.0, 19.0, 1.5707963267948966), (35.0, 21.0, 0.0), (39.0, 21.0, 0.0), 
-#         (41.0, 23.0, 1.5707963267948966), (41.0, 25.0, 1.5707963267948966), (41.0, 26.0, 1.5707963267948966), (41.0, 26.0, 2.356194490192345), 
-#         (42.0, 25.0, 2.356194490192345)]
-
-# path = [(5, 5, 0), (6.0, 6.0, 1.5707963267948966), (6.0, 10.0, 1.5707963267948966), (6.0, 14.0, 1.5707963267948966), (6.0, 18.0, 1.5707963267948966),
-#         (6.0, 20.0, 1.5707963267948966), (7.0, 21.0, 0.0), (11.0, 21.0, 0.0), (15.0, 21.0, 0.0), (19.0, 21.0, 0.0), ]
-
-# good path with no turn-in-place
-path = [(5, 5, 0), (6.0, 6.0, 1.5707963267948966), (6.0, 10.0, 1.5707963267948966), (6.0, 14.0, 1.5707963267948966), (6.0, 16.0, 1.5707963267948966), 
-        (7.0, 17.0, 0.0), (11.0, 17.0, 0.0), (15.0, 17.0, 0.0), (19.0, 17.0, 0.0), (23.0, 17.0, 0.0), (25.0, 17.0, 0.0), (26.0, 16.0, -1.5707963267948966), 
-        (26.0, 12.0, -1.5707963267948966), (26.0, 8.0, -1.5707963267948966), (26.0, 6.0, -1.5707963267948966), (26.0, 5.0, -1.5707963267948966)]
-
-# # good path with turn-in-place
-# path = [(5, 5, 0), (6.0, 6.0, 1.5707963267948966), (6.0, 10.0, 1.5707963267948966), (6.0, 14.0, 1.5707963267948966), (6.0, 16.0, 1.5707963267948966), 
-#         (7.0, 17.0, 0.0), (11.0, 17.0, 0.0), (15.0, 17.0, 0.0), (19.0, 17.0, 0.0), (23.0, 17.0, 0.0), (25.0, 17.0, 0.0), (26.0, 17.0, 0.0), 
-#         (26.0, 17.0, -0.7853981633974483), (26.0, 17.0, -1.5707963267948966), (26.0, 13.0, -1.5707963267948966), (26.0, 9.0, -1.5707963267948966), 
-#         (26.0, 5.0, -1.5707963267948966)]
-
-# # short with turn-in-place
-# path = [(5, 5, 0), (7.0, 5.0, 0.0), (8.0, 6.0, 1.5707963267948966), (8.0, 7.0, 1.5707963267948966), (8.0, 7.0, 2.356194490192345)]
+    X, U, T = solve(path, dynamics, P, Q, R, robot_size=robot_size, plot=plot)
+    save_to_csv(X, U, T)
 
 
 def main():
@@ -207,7 +154,7 @@ def main():
 
     robot_size = [3, 1]
 
-    X, U, T = solve_and_plot(path, dynamics, P, Q, R, robot_size)
+    X, U, T = solve(path, dynamics, P, Q, R, robot_size, plot=True)
     # X, U, T = solve(path, dynamics, P, Q, R)
     save_to_csv(X, U, T)
 

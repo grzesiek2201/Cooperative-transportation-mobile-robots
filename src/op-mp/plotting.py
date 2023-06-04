@@ -14,10 +14,11 @@ import env
 
 
 class Plotting:
-    def __init__(self, xI, xG, width, height):
-        self.xI, self.xG = xI, xG
-        self.env = env.Env(width, height)
+    def __init__(self, xI, xG, width, height, res):
+        self.xI, self.xG = (xI[0]*res, xI[1]*res), (xG[0]*res, xG[1]*res)
+        self.env = env.Env(width, height, res=res)
         self.obs = self.env.obs_map()
+        self.res = res
 
     def update_obs(self, obs):
         self.obs = obs

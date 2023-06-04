@@ -8,7 +8,6 @@ import os
 import sys
 import math
 import matplotlib.pyplot as plt
-import numpy as np
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__)) +
                 "/../../Search_based_Planning/")
@@ -22,7 +21,7 @@ import math
 from functools import wraps
 from time import time
 
-from traj_from_path import traj_from_path
+from mpopt_mp import optimize
 
 
 def timing(f):
@@ -38,11 +37,17 @@ def timing(f):
 
 class ADStar:
     def __init__(self, s_start, s_goal, eps, heuristic_type, x=51, y=35, robot_size=[1, 1], res=1):
-        self.s_start, self.s_goal = s_start, s_goal
+        self.s_start = (s_start[0]*res, s_start[1]*res, s_start[2])
+        self.s_goal = (s_goal[0]*res, s_goal[1]*res, s_goal[2])
         self.heuristic_type = heuristic_type
 
+        x = x * res
+        y = y * res 
+
+        self.robot_size = [robot_size[0]*res, robot_size[1]*res]
+
         self.Env = env.Env(x, y, robot_size=robot_size, res=res)  # class Env
-        self.Plot = plotting.Plotting(s_start, s_goal, x, y)
+        self.Plot = plotting.Plotting(s_start, s_goal, x, y, res)
 
         self.u_set = self.Env.motions  # feasible input set
         self.obs = self.Env.obs  # position of obstacles
@@ -77,8 +82,7 @@ class ADStar:
         self.plot_visited()
         path = self.extract_path()
         self.plot_path(path)
-        mps_list = self.mps_from_path(path)
-        traj = traj_from_path(x0=self.s_start, path=path, path_mps=mps_list, mps=self.Env.motions_pi_backwards, vmax=1, wmax=1, a=1, e=1, res=1)
+        optimize(path, robot_size=self.robot_size, plot=True)
         self.visited = set()
 
         while True:
@@ -93,8 +97,7 @@ class ADStar:
             self.plot_visited()
             path = self.extract_path()
             self.plot_path(path)
-            mps_list = self.mps_from_path(path)
-            traj = traj_from_path(x0=self.s_start, path=path, path_mps=mps_list, mps=self.Env.motions_pi_backwards, vmax=1, wmax=1, a=1, e=1, res=1)
+            optimize(path, robot_size=self.robot_size, plot=True)
             self.visited = set()
             plt.pause(0.5)
 
@@ -139,8 +142,7 @@ class ADStar:
                     self.plot_visited()
                     path = self.extract_path()
                     self.plot_path(path)
-                    mps_list = self.mps_from_path(path)
-                    traj = traj_from_path(x0=self.s_start, path=path, path_mps=mps_list, mps=self.Env.motions_pi_backwards, vmax=1, wmax=1, a=1, e=1, res=1)
+                    optimize(path, robot_size=self.robot_size, plot=True)
                     self.visited = set()
 
                     if self.eps <= 1.0:
@@ -192,8 +194,7 @@ class ADStar:
                         self.plot_visited()
                         path = self.extract_path()
                         self.plot_path(path)
-                        mps_list = self.mps_from_path(path)
-                        traj = traj_from_path(x0=self.s_start, path=path, path_mps=mps_list, mps=self.Env.motions_pi_backwards, vmax=1, wmax=1, a=1, e=1, res=1)
+                        optimize(path, robot_size=self.robot_size, plot=True)
                         plt.title(self.title)
                         self.visited = set()
                         plt.pause(0.5)

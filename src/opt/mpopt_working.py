@@ -103,22 +103,12 @@ def rrcollision(robot, obstacle, i):
         obstacle_corners = vert_from_params(obstacle)
         obstacle_r = to_rframe(rectangle=obstacle_corners, robot=robot, deg=False)
         collision = wlps_ca_simple(obstacle_r[i][0], obstacle_r[i][1], robot[3:5], robot[5])
-    # check for collision type A
-    # collisions_A = ([-wlps_ca_simple(corner[0], corner[1], robot[3:], p)+1 for corner in obstacle_r])
-    # collisions_A = ([wlps(co)])
-    # if any(collisions_A <= 1):
-    #     print("Collision type A")
 
     # robot in obstacle frame
     else:
         robot_corners = vert_from_params(robot)
         robot_o = to_oframe(robot=robot_corners, rectangle=obstacle, deg=False)
         collision = wlps_ca_simple(robot_o[i-4][0], robot_o[i-4][1], obstacle[3:5], obstacle[5])
-    # check for collision type B
-    # collisions_B = ([-wlps_ca_simple(corner[0], corner[1], obstacle[3:], p)+1 for corner in robot_o])
-    # if any(collisions_B <= 1):
-    #     print("Collision type B")
-    # return collisions_A + collisions_B
 
     return collision
 
@@ -186,14 +176,14 @@ def save_to_csv(x, u, t, filename="trajectory.csv"):
     # save results to .csv
     results = pd.DataFrame(np.hstack((x, u, t)))
     results.columns = ["x", "y", "0", "v", "w", "t"]
-    path = list(Path(__file__).parent.parent.glob(f"testing/{filename}"))[0]
+    path = list(Path(__file__).parent.parent.glob(f"opt/{filename}"))[0]
     results.to_csv(path, index=False)
 
 
 def plot_results(x, sigmas, coords, X0, Xf, robot_size, p):
     # Plotting the result
     RESOLUTION = (200, 200)
-    XY_RANGE = [[-10., 30.], [-10., 15.]]
+    XY_RANGE = [[-10., 50.], [-10., 50.]]
     POINT_SIZE = 2
 
     X = np.linspace(XY_RANGE[0][0], XY_RANGE[0][1], RESOLUTION[0])
@@ -203,11 +193,12 @@ def plot_results(x, sigmas, coords, X0, Xf, robot_size, p):
     XY = np.stack((xx.ravel(), yy.ravel()), axis=1)
     plt.figure()
 
-    result = np.array([]).reshape(-1, 2)
-    for s, [p, h, k, a] in zip(sigmas,coords):
-        temp = np.array([xy for xy in XY if -wlpn(xy, s, p, h, k, a) + 1 > 0]).reshape(-1, 2)
-        result = np.vstack((result, temp))
-    plt.scatter(result[:, 0], result[:, 1])
+    if len(sigmas) > 0 and len(coords) > 0:
+        result = np.array([]).reshape(-1, 2)
+        for s, [p, h, k, a] in zip(sigmas,coords):
+            temp = np.array([xy for xy in XY if -wlpn(xy, s, p, h, k, a) + 1 > 0]).reshape(-1, 2)
+            result = np.vstack((result, temp))
+        plt.scatter(result[:, 0], result[:, 1])
 
     # plt.subplot(3, 1, 1)
     ax = plt.gca()
@@ -225,7 +216,7 @@ def plot_results(x, sigmas, coords, X0, Xf, robot_size, p):
     # plot robot's footprint
     n_arr = int(len(x[:,0]) / 10)
     postures = [(x[:,0][i], x[:,1][i], x[:,2][i]) for i in range(0, len(x[:,0]), n_arr)]
-    width, height = robot_size[0]*2, robot_size[1]*2
+    width, height = robot_size[0], robot_size[1]
     point_of_rotation = np.array([width/2, height/2])
     for posture in postures:
         rec = RotatingRectangle((posture[0], posture[1]), width=width, height=height, 
@@ -308,34 +299,47 @@ wlps_ca_c = ca.Function('wlps_c', [xs, ys, s, x, p], [ca.power( ca.power(ca.fabs
 
 def main():
 
-    r = 1
-    X0 = np.array([5, 5, 0]); u0 = np.array([0., 0.])
-    Xf = np.array([30, 15, 0]); uf = np.array([0., 0.])
+    r = .7
+    X0 = np.array([5, 5, math.pi/2]); u0 = np.array([0., 0.])
+    Xf = np.array([6, 30, math.pi]); uf = np.array([0., 0.])
     tf = 25
     circle = (5, 0, 3)
-    robot_size = [3, 1]
+    robot_size = [2, 1]
+    e = 0.1
 
     # Define OCP
     ocp = mp.OCP(n_states=3, n_controls=2, n_phases=1, solver="scpgen")
     ocp.dynamics[0] = dynamics
     ocp.x00[0] = X0
     ocp.xf0[0][0] = Xf[0]; ocp.xf0[0][1] = Xf[1]; #ocp.xf0[0][2] = Xf[2]
-    # ocp.u00[0] = u0
-    # ocp.uf0[0] = uf
-    ocp.lbu[0], ocp.ubu[0] = [-2, -math.pi/2], [2, math.pi/2]  # if the input constraints are too restrictive the solution is often not found
-    ocp.lbtf[0] = tf
-    ocp.ubtf[0] = tf*2
+    ocp.u00[0] = u0
+    ocp.uf0[0] = uf
+    ocp.lbu[0], ocp.ubu[0] = [0, -math.pi/16], [1, math.pi/16]  # if the input constraints are too restrictive the solution is often not found
+    # ocp.lbtf[0] = tf
+    # ocp.ubtf[0] = tf*2
     # ocp.scale_t = 1 / (2*tf)
 
     sigmas, coords = define_obstacles(mode="dem")
 
-    sigmas = [[5, .5], [.5 ,7], [10, .5]]
-    coords = [[15, 15, 15, 0], [15, 20, 8, 0], [15, 10, 1, 0]]
+    # test 3
+    sigmas = [[.2, 5], [.2, 2]]
+    coords = [[20, 13, 5, 0], [20, 13, 13.5, 0]]
+
+    # test 4
+    sigmas = [[.25, 5], [.25, 5], [.2, 5], [.2, 2]]
+    coords = [[20, 13, 5, 0], [20, 13, 16.5, 0], [20, 17, 15, 0], [20, 17, 24, 0]]
+
+    # test 5
+    sigmas = [[.25, 5], [.25, 9], [.2, 5], [.2, 4], [7, .25], [10, .2]]
+    coords = [[20, 13, 5, 0], [20, 13, 20.5, 0], [20, 17, 15, 0], [20, 17, 26, 0], [20, 6.1, 29.5, 0], [20, 10, 33, 0]]
+
+    # sigmas = []
+    # coords = []
 
     # also have to add offset to the obstacles +r +e ******************
     sigmas = [np.array(sigma) for sigma in sigmas]
     ocp.path_constraints[0] = lambda x, u, t: [-wlps_ca(x, s+r, p, h, k, a) + 1 for s, [p, h, k, a] in zip(sigmas, coords)]
-    # ocp.path_constraints[0] = lambda x, u, t: [-rrcollision(np.array([x[0], x[1], x[2], robot_size[0], robot_size[1], 8]), np.array([h, k, a, s[0], s[1], p]), i) + 1
+    # ocp.path_constraints[0] = lambda x, u, t: [-rrcollision(np.array([x[0], x[1], 0, robot_size[0]+e, robot_size[1]+e, 10]), np.array([h, k, a, s[0], s[1], p]), i) + 1
     #                                            for s, [p, h, k, a] in zip(sigmas, coords) for i in range(8)]
     # rect robot - circ obstacle
     # ocp.path_constraints[0] = lambda x, u, t: [-wlps_ca_simple(rotate_origin([h - x[0], k - x[1]], x[2], point=True)[0], 
@@ -345,7 +349,7 @@ def main():
     # ocp.running_costs[0] = lambda x, u, t: 1
     # ocp.running_costs[0] = sqrt_cost
     # ocp.running_costs[0] = lambda x, u, t: 0.5 * (u[0] * u[0] + u[1] * u[1])
-    Q = np.diag([0, 0, 1])          # don't turn too sharply
+    Q = np.diag([10, 10, 100])          # don't turn too sharply
     R = np.diag([1, 1])               # keep inputs small
     P = np.diag([1000, 1000, 1000])
     ocp.running_costs[0] = lambda x, u, t: quadratic_cost(x, u, t, x0=Xf, u0=uf, Q=Q, R=R) + 1
@@ -359,7 +363,7 @@ def main():
 
 
     # Create optimizer(mpo), solve and post process(post) the solution
-    mpo, post = mp.solve(ocp, n_segments=170, poly_orders=5, scheme="LGR", plot=True, solve_dict={"ipopt.max_iter": 1000})
+    mpo, post = mp.solve(ocp, n_segments=100, poly_orders=1, scheme="LGR", plot=True, solve_dict={"ipopt.max_iter": 1000})
     # mpo, post = mp.solve(ocp, n_segments=10, poly_orders=10, scheme="CGL", plot=True)
     # mpo, post = mp.solve(ocp, n_segments=15, poly_orders=5, scheme="LGL", plot=True)
     x, u, t, _ = post.get_data()

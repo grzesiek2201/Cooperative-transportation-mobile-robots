@@ -25,11 +25,18 @@ def main():
     # s_goal = (20, 20, 0)
     # dstar = ADStar(s_start, s_goal, 1, "euclidean", 30, 30, robot_size=[1.99, 0.99], res=res)
 
-    # test 5 
+    # # test 5, 6, 7
+    # res = 1
+    # s_start = (5, 5, math.pi/2)
+    # s_goal = (5, 30, math.pi)
+    # dstar = ADStar(s_start, s_goal, 1, "euclidean", 30, 40, robot_size=[1.99, 0.99], res=res)
+
+    # test 8
     res = 1
-    s_start = (5, 5, math.pi/2)
-    s_goal = (5, 30, math.pi)
+    s_start = (20, 20, 0)
+    s_goal = (20, 30, 0)
     dstar = ADStar(s_start, s_goal, 1, "euclidean", 30, 40, robot_size=[1.99, 0.99], res=res)
+
 
     # dstar = ADStar(s_start, s_goal, 1, "euclidean", 51, 31, robot_size=[1.99, 0.99], res=1)
 

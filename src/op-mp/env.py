@@ -20,7 +20,7 @@ class Env:
         self.cost_b = 5.0*res
         self.cost_diag = 2*res  # 1
         self.cost_arc = 5*res  # 3
-        self.cost_rot = 50*res  # 3
+        self.cost_rot = 5*res  # 3
         # *********** 45 DEGREE TURN HAS WRONG FOOTPRING ***************
         # *********** IT IS BETTER APPROXIMATED WITH DIAGONAL THAN WITH ARC ************
         self.motions_pi_backwards = {
@@ -34,7 +34,8 @@ class Env:
                             (.0, .0, math.pi/4, self.cost_rot), (.0, .0, -math.pi/4, self.cost_rot),
                             (.0, 2.0*res, .0, 2*self.cost_f),    (.0, -2.0*res, .0, 2*self.cost_b),
                             (.0, 4.0*res, .0, 4*self.cost_f),    (.0, -4.0*res, .0, 4*self.cost_b),
-                            (1.0*res, 2.0*res, -math.pi/4, self.cost_arc),      (-1.0*res, 2.0*res, math.pi/4, self.cost_arc)],
+                            (1.0*res, 2.0*res, -math.pi/4, self.cost_arc),      (-1.0*res, 2.0*res, math.pi/4, self.cost_arc),
+                            (1, 5, 0, self.cost_f), (-1, 5, 0, self.cost_f)],
             
             "pi":       [(-1.0*res, .0, .0, self.cost_f),   (1.0*res, .0, .0, self.cost_b),     (-1.0*res, 1.0*res, -math.pi/2, self.cost_arc, self.turn_r),     (-1.0*res, -1.0*res, math.pi/2, self.cost_arc, self.turn_r),     
                             (.0, .0, math.pi/4, self.cost_rot), (.0, .0, -math.pi/4, self.cost_rot),
@@ -143,8 +144,27 @@ class Env:
         # test 5 (along with test 4)
         for i in range(0, 13):
             obs.add((i, 29*self.res))
-        for i in range(0, 20):
+        for i in range(0, 30):
             obs.add((i, 33*self.res))
+
+        # test 6
+        for i in range(18, 30):
+            obs.add((i, 29))
+        # obs.add((14, 28))
+        # obs.add((14, 29))
+
+        # test 7
+        obs.add((7, 7))
+        obs.add((8, 7))
+
+        obs.add((15, 18))
+
+        # test 8
+        for i in range(17, 26):
+            obs.add((i, 17))
+        for i in range(17, 30):
+            obs.add((26, i))
+        
 
         return obs
 
